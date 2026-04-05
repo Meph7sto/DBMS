@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import API_PREFIX, CORS_ORIGINS
-from routers import connection, explore, query
+from routers import connection, explore, query, crud, statistics
 
 
 app = FastAPI(
@@ -23,6 +23,8 @@ app.add_middleware(
 app.include_router(connection.router, prefix=API_PREFIX)
 app.include_router(explore.router, prefix=API_PREFIX)
 app.include_router(query.router, prefix=API_PREFIX)
+app.include_router(crud.router)
+app.include_router(statistics.router)
 
 
 @app.get("/api/health")

@@ -3,17 +3,24 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from database import db
+from config import get_default_connection
 
 
 router = APIRouter(tags=["connection"])
 
+defaults = get_default_connection()
 
 class ConnectRequest(BaseModel):
-    host: str = "localhost"
-    port: int = 5438
-    user: str = "postgres"
-    password: str = "postgres"
-    database: str = "postgres"
+    host: str = defaults["host"]
+    port: int = defaults["port"]
+    user: str = defaults["user"]
+    password: str = defaults["password"]
+    database: str = defaults["database"]
+
+
+@router.get("/connect/defaults")
+def connection_defaults():
+    return get_default_connection()
 
 
 @router.post("/connect")

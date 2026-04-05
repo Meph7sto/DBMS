@@ -1,29 +1,29 @@
 <template>
-  <div class="result-panel">
-    <div class="result-header">
-      <span class="result-title">{{ title }}</span>
-      <span v-if="rowCount !== null" class="result-count">
-        {{ rowCount }} 行
+  <div style="display:flex;flex-direction:column;height:100%;">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid rgba(28,40,52,0.1); background: rgba(28,40,52,0.02)">
+      <span class="eyebrow">{{ title }}</span>
+      <span v-if="rowCount !== null" class="eyebrow" style="color:var(--accent)">
+        共 {{ rowCount }} 行
       </span>
     </div>
 
-    <div v-if="error" class="result-error">{{ error }}</div>
+    <div v-if="error" style="padding: 16px 20px; color: var(--signal); font-family: monospace; font-size: 13px;">{{ error }}</div>
 
-    <div v-else-if="message" class="result-message">{{ message }}</div>
+    <div v-else-if="message" style="padding: 16px 20px; color: var(--teal); font-family: monospace; font-size: 13px;">{{ message }}</div>
 
-    <div v-else-if="columns.length" class="result-scroll">
-      <table class="data-table">
-        <thead>
+    <div v-else-if="columns.length" style="flex:1; overflow:auto;">
+      <table style="width:100%; border-collapse:collapse; font-family: monospace; font-size:12px; text-align:left;">
+        <thead style="position:sticky; top:0; background:var(--paper); z-index:1; border-bottom: 1px solid rgba(28,40,52,0.2);">
           <tr>
-            <th class="row-num">#</th>
-            <th v-for="col in columns" :key="col">{{ col }}</th>
+            <th style="padding: 8px 12px; color:rgba(28,40,52,0.5); width:40px">#</th>
+            <th v-for="col in columns" :key="col" style="padding: 8px 12px; color:rgba(28,40,52,0.8); white-space:nowrap;">{{ col }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, i) in rows" :key="i">
-            <td class="row-num">{{ i + 1 }}</td>
-            <td v-for="col in columns" :key="col">
-              <span v-if="row[col] === null" class="null-val">NULL</span>
+          <tr v-for="(row, i) in rows" :key="i" style="border-bottom: 1px solid rgba(28,40,52,0.06);">
+            <td style="padding: 6px 12px; color:rgba(28,40,52,0.4);">{{ i + 1 }}</td>
+            <td v-for="col in columns" :key="col" style="padding: 6px 12px; white-space:nowrap;">
+              <span v-if="row[col] === null" style="color:rgba(28,40,52,0.3); font-style:italic">NULL</span>
               <span v-else>{{ row[col] }}</span>
             </td>
           </tr>
@@ -31,7 +31,7 @@
       </table>
     </div>
 
-    <div v-else class="result-empty">执行查询以查看结果</div>
+    <div v-else style="padding: 40px; text-align:center; color:rgba(28,40,52,0.4); font-size:13px;">执行查询以查看结果</div>
   </div>
 </template>
 
@@ -47,64 +47,8 @@ defineProps({
 </script>
 
 <style scoped>
-.result-panel {
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid var(--border);
-  background: var(--bg-primary);
-  min-height: 0;
-  flex: 1;
-}
-.result-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 14px;
-  background: var(--bg-tertiary);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.result-title {
-  font-family: var(--font-display);
-  font-size: 0.74rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-.result-count {
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  color: var(--accent);
-}
-.result-scroll {
-  flex: 1;
-  overflow: auto;
-}
-.result-error {
-  padding: 12px 14px;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  color: var(--danger);
-  background: rgba(255, 71, 87, 0.06);
-  border-bottom: 1px solid var(--danger);
-}
-.result-message {
-  padding: 12px 14px;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  color: var(--success);
-}
-.result-empty {
-  padding: 32px;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
-.row-num {
-  color: var(--text-muted);
-  text-align: right;
-  width: 40px;
-  min-width: 40px;
+/* Inherited */
+tbody tr:hover {
+  background: rgba(47, 143, 137, 0.05);
 }
 </style>

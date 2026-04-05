@@ -1,23 +1,24 @@
 <template>
-  <div class="app-shell">
-    <ConnectionModal
-      v-if="showConnect"
-      @connected="onConnected"
-      @close="showConnect = false"
-    />
-    <TopBar
-      :connection="connection"
-      @open-connect="showConnect = true"
-      @disconnect="onDisconnect"
-    />
-    <div class="app-body">
+  <div class="ref-app">
+    <div class="grain"></div>
+    <div class="app-layout" :class="{ 'no-sidebar': !connection }">
       <Sidebar
         v-if="connection"
         :schemas="schemas"
         :tables-map="tablesMap"
         @refresh="loadMeta"
       />
-      <main class="app-main">
+      <main class="canvas">
+        <ConnectionModal
+          v-if="showConnect"
+          @connected="onConnected"
+          @close="showConnect = false"
+        />
+        <TopBar
+          :connection="connection"
+          @open-connect="showConnect = true"
+          @disconnect="onDisconnect"
+        />
         <router-view
           :connection="connection"
           :schemas="schemas"
@@ -42,12 +43,20 @@ const tablesMap = ref({})
 
 async function checkConnection() {
   try {
-    const { data } = await connectionStatus()
-    if (data.connected) {
-      connection.value = data.connection
+    const { data: status } = await connectionStatus()
+    if (status.connected) {
+      connection.value = status.connection
       await loadMeta()
     } else {
-      showConnect.value = true
+      // Auto-connect with default credentials
+      const { data: defaults } = await connectionDefaults()
+      const { data } = await connect(defaults)
+      if (data.ok) {
+        connection.value = data.connection
+        await loadMeta()
+      } else {
+        showConnect.value = true
+      }
     }
   } catch {
     showConnect.value = true
@@ -90,20 +99,8 @@ onMounted(checkConnection)
 </script>
 
 <style scoped>
-.app-shell {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: var(--bg-root);
-}
-.app-body {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-.app-main {
-  flex: 1;
-  overflow: auto;
-  background: var(--bg-primary);
+/* Scoped styles removed because ref-styles.css handles global layouts */
+.app-layout.no-sidebar {
+  grid-template-columns: 1fr;
 }
 </style>

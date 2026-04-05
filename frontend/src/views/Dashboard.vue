@@ -1,37 +1,53 @@
 <template>
   <div class="dashboard">
-    <div class="dash-hero">
-      <h1 class="dash-title">▦ DBMS</h1>
-      <p class="dash-subtitle">可视化数据库管理系统</p>
-    </div>
-
-    <div v-if="connection" class="dash-grid anim-slide">
-      <div class="dash-card">
-        <div class="dash-card__label">数据库</div>
-        <div class="dash-card__value">{{ connection.database }}</div>
-      </div>
-      <div class="dash-card">
-        <div class="dash-card__label">服务器</div>
-        <div class="dash-card__value font-mono" style="font-size:0.78rem">
-          {{ connection.host }}:{{ connection.port }}
+    <div class="hero head-hero">
+      <div class="hero-panel">
+        <div class="eyebrow">终端面板</div>
+        <h1>DBMS 数据库管理系统</h1>
+        <p class="lead">使用现代数据终端轻松地可视化、管理和查询您的数据库。</p>
+        <div class="hero-actions" v-if="connection">
+          <router-link to="/query" class="primary">✦ 新建查询</router-link>
         </div>
       </div>
-      <div class="dash-card">
-        <div class="dash-card__label">Schema 数</div>
-        <div class="dash-card__value">{{ schemas.length }}</div>
-      </div>
-      <div class="dash-card">
-        <div class="dash-card__label">总表数</div>
-        <div class="dash-card__value">{{ totalTables }}</div>
+      <div class="hero-panel">
+        <div v-if="!connection" class="panel-card">
+           <div class="panel-title">系统状态</div>
+           <div class="panel-value" style="color:var(--signal)">未连接</div>
+           <div class="panel-caption">请通过右上角连接数据库</div>
+        </div>
+        <div v-else class="panel-card" style="background: rgba(47, 143, 137, 0.1); border-color: rgba(47, 143, 137, 0.4)">
+           <div class="panel-title">当前活动库</div>
+           <div class="panel-value">{{ connection.database }}</div>
+           <div class="panel-caption">{{ connection.host }}:{{ connection.port }}</div>
+           <div class="signal-grid" style="margin-top:20px;">
+             <div class="signal good"></div><div class="signal good"></div><div class="signal good"></div>
+           </div>
+        </div>
       </div>
     </div>
 
-    <div v-if="connection" class="dash-actions anim-slide">
-      <router-link to="/query" class="btn btn--accent">＋ 新建查询</router-link>
-    </div>
-
-    <div v-if="!connection" class="dash-empty">
-      请先连接数据库
+    <div v-if="connection" class="grid anim-slide" style="margin-top: 24px;">
+      <div class="card">
+        <div class="card-header">
+          <h4 class="card-kicker">数据库模式</h4>
+          <span class="chip chip-accent">总计: {{ schemas.length }}</span>
+        </div>
+        <h2>模式列表</h2>
+        <div class="chip-row">
+          <span v-for="s in schemas.slice(0, 8)" :key="s" class="chip chip-neutral">{{ s }}</span>
+          <span v-if="schemas.length > 8" class="chip chip-neutral">...</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h4 class="card-kicker">数据表</h4>
+          <span class="chip chip-good">总计: {{ totalTables }}</span>
+        </div>
+        <h2>全部数据表</h2>
+        <div class="chip-row">
+           <span class="chip chip-good">数据已就绪</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -51,61 +67,5 @@ const totalTables = computed(() =>
 </script>
 
 <style scoped>
-.dashboard {
-  padding: 48px 40px;
-  max-width: 800px;
-}
-.dash-hero {
-  margin-bottom: 40px;
-}
-.dash-title {
-  font-family: var(--font-display);
-  font-size: 2.2rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--accent);
-  line-height: 1;
-}
-.dash-subtitle {
-  margin-top: 8px;
-  font-size: 0.92rem;
-  color: var(--text-secondary);
-}
-.dash-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 1px;
-  background: var(--border);
-  border: 1px solid var(--border);
-  margin-bottom: 32px;
-}
-.dash-card {
-  padding: 18px 20px;
-  background: var(--bg-secondary);
-}
-.dash-card__label {
-  font-family: var(--font-display);
-  font-size: 0.68rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 6px;
-}
-.dash-card__value {
-  font-family: var(--font-display);
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.dash-actions {
-  display: flex;
-  gap: 12px;
-}
-.dash-empty {
-  padding: 48px;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 1rem;
-}
+/* Inherit from ref-styles.css */
 </style>

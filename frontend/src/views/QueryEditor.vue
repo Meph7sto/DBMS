@@ -1,30 +1,32 @@
 <template>
-  <div class="query-page">
-    <div class="query-toolbar">
-      <span class="query-toolbar__title">SQL 查询</span>
-      <div class="query-toolbar__right">
-        <span class="query-hint">Ctrl + Enter 执行</span>
-        <button class="btn btn--sm" @click="sqlText = ''">清空</button>
-        <button class="btn btn--sm btn--accent" :disabled="running" @click="run">
-          {{ running ? '执行中...' : '▶ 执行' }}
-        </button>
+  <div class="query-page" style="display:flex;flex-direction:column;gap:16px;height:100%;">
+    <div class="card" style="padding:0; overflow:hidden">
+      <div class="card-header" style="padding: 16px 20px 0 20px;">
+         <h4 class="card-kicker">SQL 编辑器</h4>
+         <div class="hero-actions" style="margin:0">
+           <span class="eyebrow" style="margin-right:12px;text-transform:none">Ctrl + Enter 执行</span>
+           <button class="ghost" @click="sqlText = ''">清空</button>
+           <button class="primary" :disabled="running" @click="run">
+             {{ running ? '执行中...' : '▶ 执行' }}
+           </button>
+         </div>
+      </div>
+      <div style="border-top: 1px solid rgba(28,40,52,0.12); border-bottom: 1px solid rgba(28,40,52,0.12); margin-top: 10px; min-height: 200px; display:flex;">
+        <SqlEditor v-model="sqlText" @execute="run" style="flex:1;" />
+      </div>
+      <div v-if="elapsed !== null" style="padding: 8px 20px; font-size: 11px; color: rgba(28,40,52,0.6);" class="eyebrow">
+        耗时: {{ elapsed }} ms
       </div>
     </div>
 
-    <div class="query-editor-area">
-      <SqlEditor v-model="sqlText" @execute="run" />
-    </div>
-
-    <ResultTable
-      :columns="result.columns"
-      :rows="result.rows"
-      :row-count="result.rowCount"
-      :error="result.error"
-      :message="result.message"
-    />
-
-    <div v-if="elapsed !== null" class="query-status">
-      耗时 {{ elapsed }} ms
+    <div class="card wide" style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:0;background:rgba(255,255,255,0.95);">
+      <ResultTable
+        :columns="result.columns"
+        :rows="result.rows"
+        :row-count="result.rowCount"
+        :error="result.error"
+        :message="result.message"
+      />
     </div>
   </div>
 </template>
@@ -76,53 +78,6 @@ async function run() {
   }
 }
 </script>
-
 <style scoped>
-.query-page {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-.query-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 14px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.query-toolbar__title {
-  font-family: var(--font-display);
-  font-size: 0.82rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-.query-toolbar__right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.query-hint {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--text-muted);
-}
-.query-editor-area {
-  flex: 1;
-  display: flex;
-  min-height: 120px;
-  max-height: 50%;
-}
-.query-status {
-  padding: 4px 14px;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  background: var(--bg-tertiary);
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-}
+/* Inherited */
 </style>

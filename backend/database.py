@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from psycopg2 import errors as pg_errors
 
 
 def _serialize_value(val):
@@ -60,13 +61,20 @@ class DatabaseManager:
         """Establish a new database connection, closing any existing one."""
         with self._lock:
             self._close_internal()
-            conn = psycopg2.connect(
-                host=host,
-                port=port,
-                user=user,
-                password=password,
-                database=database,
-            )
+            try:
+                conn = psycopg2.connect(
+                    host=host,
+                    port=port,
+                    user=user,
+                    password=password,
+                    database=database,
+                )
+            except UnicodeDecodeError as exc:
+                raw_err = getattr(exc, 'object', None)
+                if raw_err and isinstance(raw_err, bytes):
+                    msg = raw_err.decode('gbk', errors='replace')
+                    raise RuntimeError(msg)
+                raise
             conn.autocommit = True
             self._connection = conn
             self._info = {
@@ -96,22 +104,36 @@ class DatabaseManager:
             raise RuntimeError("Not connected to any database")
 
         with self._lock:
-            with self._connection.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(query, params)
-                if cur.description:
-                    columns = [desc[0] for desc in cur.description]
-                    rows = [_serialize_row(dict(r)) for r in cur.fetchall()]
+            try:
+                with self._connection.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(query, params)
+                    if cur.description:
+                        columns = [desc[0] for desc in cur.description]
+                        rows = [_serialize_row(dict(r)) for r in cur.fetchall()]
+                        return {
+                            "type": "result",
+                            "columns": columns,
+                            "rows": rows,
+                            "row_count": len(rows),
+                        }
                     return {
-                        "type": "result",
-                        "columns": columns,
-                        "rows": rows,
-                        "row_count": len(rows),
+                        "type": "command",
+                        "message": f"OK — {cur.rowcount} row(s) affected",
+                        "row_count": cur.rowcount,
                     }
-                return {
-                    "type": "command",
-                    "message": f"OK — {cur.rowcount} row(s) affected",
-                    "row_count": cur.rowcount,
-                }
+            except pg_errors.IntegrityError as exc:
+                # Translate psycopg2 IntegrityError to Chinese messages
+                msg = str(exc)
+                if "unique" in msg.lower() or "duplicate" in msg.lower():
+                    raise RuntimeError("违反唯一约束：" + msg)
+                elif "foreign key" in msg.lower():
+                    raise RuntimeError("外键引用无效：" + msg)
+                elif "not-null" in msg.lower():
+                    raise RuntimeError("字段不能为空：" + msg)
+                elif "check" in msg.lower():
+                    raise RuntimeError("数据校验失败：" + msg)
+                else:
+                    raise RuntimeError("数据完整性错误：" + msg)
 
     def _close_internal(self):
         """Close connection without acquiring lock (caller must hold lock)."""
