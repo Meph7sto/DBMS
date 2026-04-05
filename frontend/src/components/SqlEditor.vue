@@ -9,7 +9,8 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { EditorView, lineNumbers, keymap } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { sql, PostgreSQL } from '@codemirror/lang-sql'
-import { oneDark } from '@codemirror/theme-one-dark'
+// Remove oneDark to use the default light theme which perfectly fits the UI
+// import { oneDark } from '@codemirror/theme-one-dark'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -21,33 +22,39 @@ let view = null
 
 const customTheme = EditorView.theme({
   '&': {
-    backgroundColor: 'var(--bg-primary)',
-    color: 'var(--text-primary)',
-    border: '1px solid var(--border)',
-    fontSize: '13px',
+    backgroundColor: 'rgba(28, 40, 52, 0.03)',
+    color: 'var(--ink-950, #1b2730)',
+    fontSize: '14px',
   },
   '.cm-content': {
-    fontFamily: "'DM Mono', monospace",
-    caretColor: 'var(--accent)',
-    padding: '8px 0',
+    fontFamily: "'DM Mono', 'Fira Code', 'JetBrains Mono', monospace",
+    caretColor: 'var(--ink-900, #23323d)',
+    padding: '12px 0',
+  },
+  '.cm-line': {
+    lineHeight: '1.6',
   },
   '.cm-gutters': {
-    backgroundColor: 'var(--bg-tertiary)',
-    color: 'var(--text-muted)',
-    border: 'none',
-    borderRight: '1px solid var(--border)',
+    backgroundColor: 'transparent',
+    color: 'rgba(28, 40, 52, 0.4)',
+    borderRight: '1px solid rgba(28, 40, 52, 0.08)',
+  },
+  '&.cm-focused': {
+    outline: 'none',
   },
   '&.cm-focused .cm-cursor': {
-    borderLeftColor: 'var(--accent)',
+    borderLeftColor: 'var(--accent, #c4692f)',
+    borderLeftWidth: '2px',
   },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
-    backgroundColor: 'rgba(0, 220, 230, 0.15)',
+  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
+    backgroundColor: 'rgba(47, 143, 137, 0.15)',
   },
   '.cm-activeLine': {
-    backgroundColor: 'rgba(0, 220, 230, 0.04)',
+    backgroundColor: 'rgba(28, 40, 52, 0.04)',
   },
   '.cm-activeLineGutter': {
-    backgroundColor: 'var(--bg-hover)',
+    backgroundColor: 'transparent',
+    color: 'var(--ink-700, #394956)',
   },
 })
 
@@ -67,7 +74,6 @@ onMounted(() => {
     extensions: [
       lineNumbers(),
       sql({ dialect: PostgreSQL }),
-      oneDark,
       customTheme,
       ctrlEnter,
       EditorView.updateListener.of((update) => {
@@ -103,12 +109,17 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  background: transparent;
 }
 .editor-container {
   flex: 1;
   overflow: auto;
 }
-.editor-container .cm-editor {
+/* Use :deep() to correctly target elements created by CodeMirror */
+.editor-container :deep(.cm-editor) {
   height: 100%;
+}
+.editor-container :deep(.cm-scroller) {
+  font-family: inherit;
 }
 </style>

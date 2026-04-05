@@ -31,7 +31,14 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { connectionStatus, disconnect, listSchemas, listTables } from './api'
+import {
+  connect,
+  connectionDefaults,
+  connectionStatus,
+  disconnect,
+  listSchemas,
+  listTables,
+} from './api'
 import TopBar from './components/TopBar.vue'
 import Sidebar from './components/Sidebar.vue'
 import ConnectionModal from './components/ConnectionModal.vue'
@@ -41,26 +48,50 @@ const showConnect = ref(false)
 const schemas = ref([])
 const tablesMap = ref({})
 
-async function checkConnection() {
-  try {
-    const { data: status } = await connectionStatus()
-    if (status.connected) {
-      connection.value = status.connection
-      await loadMeta()
-    } else {
-      // Auto-connect with default credentials
-      const { data: defaults } = await connectionDefaults()
-      const { data } = await connect(defaults)
-      if (data.ok) {
-        connection.value = data.connection
-        await loadMeta()
-      } else {
-        showConnect.value = true
-      }
-    }
-  } catch {
-    showConnect.value = true
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function tryAutoConnect() {
+  const { data: status } = await connectionStatus()
+  if (status.connected) {
+    connection.value = status.connection
+    await loadMeta()
+    return true
   }
+
+  const { data: defaults } = await connectionDefaults()
+  const { data } = await connect(defaults)
+  if (!data.ok) {
+    return false
+  }
+
+  connection.value = data.connection
+  await loadMeta()
+  return true
+}
+
+async function checkConnection() {
+  const maxAttempts = 10
+  const retryDelayMs = 1000
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const connected = await tryAutoConnect()
+      if (connected) {
+        showConnect.value = false
+        return
+      }
+    } catch (err) {
+      console.warn(`Auto-connect attempt ${attempt} failed`, err)
+    }
+
+    if (attempt < maxAttempts) {
+      await sleep(retryDelayMs)
+    }
+  }
+
+  showConnect.value = true
 }
 
 async function loadMeta() {

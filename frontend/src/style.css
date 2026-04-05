@@ -74,7 +74,7 @@
 
 .ref-app .app-layout {
   display: grid;
-  grid-template-columns: var(--sidebar-width, 260px) 1fr;
+  grid-template-columns: var(--sidebar-width, 300px) 1fr;
   height: 100vh;
   min-height: 100vh;
   position: relative;
@@ -226,20 +226,30 @@
 }
 
 .ref-app .nav-icon {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  background: currentColor;
-  opacity: 0.3;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
 }
 
 .ref-app .rail-nav a.active,
+.ref-app .rail-nav a.router-link-active,
 .ref-app .rail-nav a:hover,
 .ref-app .rail-link.active,
+.ref-app .rail-link.router-link-active,
 .ref-app .rail-link:hover {
   background: rgba(196, 105, 47, 0.15);
   color: var(--ink-950);
+}
+
+.ref-app .rail-nav a.active .nav-icon,
+.ref-app .rail-nav a.router-link-active .nav-icon,
+.ref-app .rail-nav a:hover .nav-icon,
+.ref-app .rail-link.active .nav-icon,
+.ref-app .rail-link.router-link-active .nav-icon,
+.ref-app .rail-link:hover .nav-icon {
+  opacity: 0.9;
 }
 
 .ref-app .rail-link.muted,
@@ -278,8 +288,8 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-left: 32px;
-  padding-left: 12px;
+  margin-left: 20px;
+  padding-left: 8px;
   border-left: 1px solid rgba(28, 40, 52, 0.12);
   margin-top: 4px;
   margin-bottom: 8px;

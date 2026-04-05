@@ -10,39 +10,39 @@
     </div>
 
     <nav class="rail-nav">
-      <router-link to="/" class="rail-link active">
-        <span class="nav-icon">⌘</span>
+      <router-link to="/" class="rail-link" active-class="" exact-active-class="router-link-active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
         <span class="nav-label">仪表盘</span>
       </router-link>
 
       <router-link to="/products" class="rail-link">
-        <span class="nav-icon">📐</span>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
         <span class="nav-label">产品管理</span>
       </router-link>
 
       <router-link to="/projects" class="rail-link">
-        <span class="nav-icon">📋</span>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         <span class="nav-label">项目管理</span>
       </router-link>
 
       <router-link to="/requirements" class="rail-link">
-        <span class="nav-icon">🎯</span>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
         <span class="nav-label">需求管理</span>
       </router-link>
 
       <router-link to="/defects" class="rail-link">
-        <span class="nav-icon">🐛</span>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M11.76 15.6a4 4 0 0 0 4.14-2l.9-1.5a4 4 0 0 0-1.85-5.61A4.01 4.01 0 0 0 9.2 8.1l.9 1.5a4 4 0 0 0 1.66 4"/><path d="M22 10.5l-4 1.5"/><path d="M2 10.5l4 1.5"/><path d="M12 22v-4"/><path d="M20 16l-3.5-1.5"/><path d="M4 16l3.5-1.5"/></svg>
         <span class="nav-label">缺陷管理</span>
       </router-link>
 
       <router-link to="/query" class="rail-link">
-        <span class="nav-icon">✨</span>
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
         <span class="nav-label">新建查询</span>
       </router-link>
 
       <div v-for="schema in schemas" :key="schema" class="nav-group">
         <button class="rail-link has-children" @click="toggleSchema(schema)">
-          <span class="nav-icon">📦</span>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
           <span class="nav-label">{{ schema }} ({{ (tablesMap[schema] || []).length }})</span>
           <svg class="nav-chevron" :class="{ rotated: expanded[schema] }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="6 9 12 15 18 9"></polyline>
