@@ -47,7 +47,7 @@ const customTheme = EditorView.theme({
     borderLeftWidth: '2px',
   },
   '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-    backgroundColor: 'rgba(47, 143, 137, 0.15)',
+    backgroundColor: 'rgba(56, 178, 172, 0.15)',
   },
   '.cm-activeLine': {
     backgroundColor: 'rgba(28, 40, 52, 0.04)',

@@ -25,13 +25,13 @@
   --ink-700: #394956;
   --ink-500: #5d6b76;
   --ink-300: #9eabb4;
-  --paper: #f7f2e8;
-  --paper-strong: #efe5d4;
-  --accent: #c4692f;
-  --accent-strong: #a85424;
-  --teal: #2f8f89;
+  --paper: #f0f4f8;
+  --paper-strong: #e2e8f0;
+  --accent: #3182ce;
+  --accent-strong: #2b6cb0;
+  --teal: #38b2ac;
   --signal: #c45b60;
-  --glow: rgba(196, 105, 47, 0.2);
+  --glow: rgba(43, 108, 176, 0.2);
   --shadow: none;
   --radius-lg: 0;
   --radius-md: 0;
@@ -44,9 +44,9 @@
 
 .ref-app {
   min-height: 100vh;
-  background: radial-gradient(circle at 12% 18%, rgba(196, 105, 47, 0.18), transparent 55%),
-    radial-gradient(circle at 86% 8%, rgba(47, 143, 137, 0.18), transparent 46%),
-    linear-gradient(135deg, #f8f3ea 0%, #f1e7d5 45%, #f9f5ed 100%);
+  background: radial-gradient(circle at 12% 18%, rgba(43, 108, 176, 0.15), transparent 55%),
+    radial-gradient(circle at 86% 8%, rgba(56, 178, 172, 0.15), transparent 46%),
+    linear-gradient(135deg, #f0f4f8 0%, #e1e8f0 45%, #f4f7f9 100%);
   color: var(--ink-950);
   font-family: "BodyWithTimesDigits", "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
   font-variant-numeric: lining-nums tabular-nums;
@@ -89,7 +89,7 @@
 .ref-app .rail {
   padding: 36px 30px;
   border-right: 1px solid rgba(28, 40, 52, 0.12);
-  background: linear-gradient(180deg, rgba(249, 244, 235, 0.96), rgba(240, 232, 218, 0.98));
+  background: linear-gradient(180deg, rgba(244, 247, 249, 0.96), rgba(235, 240, 245, 0.98));
   display: flex;
   flex-direction: column;
   gap: 28px;
@@ -239,7 +239,7 @@
 .ref-app .rail-link.active,
 .ref-app .rail-link.router-link-active,
 .ref-app .rail-link:hover {
-  background: rgba(196, 105, 47, 0.15);
+  background: rgba(43, 108, 176, 0.15);
   color: var(--ink-950);
 }
 
@@ -369,9 +369,9 @@
 }
 
 .ref-app .mode-btn.active {
-  background: rgba(196, 105, 47, 0.2);
+  background: rgba(43, 108, 176, 0.2);
   color: #1f140e;
-  border-color: rgba(196, 105, 47, 0.8);
+  border-color: rgba(43, 108, 176, 0.8);
   box-shadow: none;
 }
 
@@ -430,7 +430,7 @@
 
 .ref-app .canvas {
   padding: 20px 24px 40px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 242, 232, 0.45)),
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(240, 244, 248, 0.45)),
     repeating-linear-gradient(90deg, rgba(28, 40, 52, 0.05) 0, rgba(28, 40, 52, 0.05) 1px, transparent 1px, transparent 60px);
   overflow-y: auto;
   overflow-x: hidden;
@@ -444,7 +444,7 @@
   gap: 24px;
   padding: 16px 20px;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(47, 143, 137, 0.12));
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(56, 178, 172, 0.12));
   border: 1px solid rgba(28, 40, 52, 0.1);
   box-shadow: var(--shadow);
 }
@@ -468,14 +468,14 @@
   gap: 30px;
   padding: 28px;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(196, 105, 47, 0.14));
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(43, 108, 176, 0.14));
   box-shadow: var(--shadow);
   border: 1px solid rgba(28, 40, 52, 0.1);
 }
 
 .ref-app .hero.head-hero {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(47, 143, 137, 0.18));
-  border-color: rgba(47, 143, 137, 0.25);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(56, 178, 172, 0.18));
+  border-color: rgba(56, 178, 172, 0.25);
 }
 
 .ref-app .eyebrow {
@@ -566,8 +566,8 @@
 }
 
 .ref-app .ribbon-step.active {
-  background: rgba(47, 143, 137, 0.3);
-  border-color: rgba(47, 143, 137, 0.7);
+  background: rgba(56, 178, 172, 0.3);
+  border-color: rgba(56, 178, 172, 0.7);
 }
 
 .ref-app .hero-panel {
@@ -615,11 +615,11 @@
 }
 
 .ref-app .signal.good {
-  background: rgba(47, 143, 137, 0.8);
+  background: rgba(56, 178, 172, 0.8);
 }
 
 .ref-app .signal.warn {
-  background: rgba(196, 105, 47, 0.8);
+  background: rgba(43, 108, 176, 0.8);
 }
 
 .ref-app .signal.alert {
@@ -679,13 +679,13 @@
 }
 
 .ref-app .chip-good {
-  background: rgba(47, 143, 137, 0.18);
-  border-color: rgba(47, 143, 137, 0.6);
+  background: rgba(56, 178, 172, 0.18);
+  border-color: rgba(56, 178, 172, 0.6);
 }
 
 .ref-app .chip-warn {
-  background: rgba(196, 105, 47, 0.2);
-  border-color: rgba(196, 105, 47, 0.7);
+  background: rgba(43, 108, 176, 0.2);
+  border-color: rgba(43, 108, 176, 0.7);
 }
 
 .ref-app .chip-alert {
@@ -699,8 +699,8 @@
 }
 
 .ref-app .chip-accent {
-  background: rgba(196, 105, 47, 0.28);
-  border-color: rgba(196, 105, 47, 0.8);
+  background: rgba(43, 108, 176, 0.28);
+  border-color: rgba(43, 108, 176, 0.8);
 }
 
 .ref-app .chip-row {
@@ -738,11 +738,11 @@
 }
 
 .ref-app .slot.free {
-  background: rgba(47, 143, 137, 0.2);
+  background: rgba(56, 178, 172, 0.2);
 }
 
 .ref-app .slot.busy {
-  background: rgba(196, 105, 47, 0.18);
+  background: rgba(43, 108, 176, 0.18);
 }
 
 .ref-app .slot.maint {
@@ -773,7 +773,7 @@
 
 .ref-app .form-hint {
   font-size: 12px;
-  color: rgba(47, 143, 137, 0.9);
+  color: rgba(56, 178, 172, 0.9);
   margin: 0;
 }
 
@@ -1045,22 +1045,22 @@
 }
 
 .ref-app .chain-done {
-  background: rgba(47, 143, 137, 0.18);
-  border-color: rgba(47, 143, 137, 0.5);
+  background: rgba(56, 178, 172, 0.18);
+  border-color: rgba(56, 178, 172, 0.5);
 }
 
 .ref-app .chain-done::before {
-  background: rgba(47, 143, 137, 0.9);
+  background: rgba(56, 178, 172, 0.9);
 }
 
 .ref-app .chain-current {
-  background: rgba(196, 105, 47, 0.2);
-  border-color: rgba(196, 105, 47, 0.6);
+  background: rgba(43, 108, 176, 0.2);
+  border-color: rgba(43, 108, 176, 0.6);
   box-shadow: none;
 }
 
 .ref-app .chain-current::before {
-  background: rgba(196, 105, 47, 0.95);
+  background: rgba(43, 108, 176, 0.95);
 }
 
 .ref-app .chain-pending {
@@ -1153,8 +1153,8 @@
   gap: 12px;
   padding: 14px;
   border-radius: var(--radius-sm);
-  background: rgba(47, 143, 137, 0.08);
-  border: 1px solid rgba(47, 143, 137, 0.2);
+  background: rgba(56, 178, 172, 0.08);
+  border: 1px solid rgba(56, 178, 172, 0.2);
 }
 
 .ref-app .upload-panel {
@@ -1359,8 +1359,8 @@
 }
 
 .ref-app .role-card.active {
-  border-color: rgba(196, 105, 47, 0.65);
-  background: rgba(196, 105, 47, 0.12);
+  border-color: rgba(43, 108, 176, 0.65);
+  background: rgba(43, 108, 176, 0.12);
   box-shadow: none;
   transform: translateY(-2px);
 }
@@ -1400,7 +1400,7 @@
 .ref-app .login-hint {
   font-size: 12px;
   color: rgba(28, 40, 52, 0.6);
-  border-left: 2px solid rgba(196, 105, 47, 0.35);
+  border-left: 2px solid rgba(43, 108, 176, 0.35);
   padding-left: 12px;
 }
 
@@ -1699,7 +1699,7 @@
 }
 
 .ref-app .tree-item.active {
-  background: rgba(196, 105, 47, 0.08);
+  background: rgba(43, 108, 176, 0.08);
   border-left: 3px solid var(--accent);
   padding-left: 5px;
 }
@@ -1716,7 +1716,7 @@
 }
 
 .ref-app .tree-item.sub.selected {
-  background: rgba(47, 143, 137, 0.1);
+  background: rgba(56, 178, 172, 0.1);
   color: var(--teal);
   font-weight: 600;
 }
