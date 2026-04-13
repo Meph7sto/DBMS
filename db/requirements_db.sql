@@ -414,15 +414,9 @@ RETURNS TABLE (
 LANGUAGE plpgsql AS $$
 BEGIN
     RETURN QUERY
-    SELECT
-        req.req_id,
-        req.title AS requirement_title,
-        req.requirement_type,
-        req.status,
-        req.priority,
-        req.assignee,
-        proj.name AS project_name,
-        COALESCE(
+    WITH test_case_agg AS (
+        SELECT
+            rtl.requirement_id,
             JSON_AGG(
                 DISTINCT JSONB_BUILD_OBJECT(
                     'test_case_id', tc.test_case_id,
@@ -430,10 +424,15 @@ BEGIN
                     'status', tc.status,
                     'link_type', rtl.link_type
                 )
-            ) FILTER (WHERE tc.test_case_id IS NOT NULL),
-            '[]'::JSONB
-        ) AS test_cases,
-        COALESCE(
+            ) FILTER (WHERE tc.test_case_id IS NOT NULL) AS test_cases,
+            COUNT(DISTINCT tc.test_case_id) AS test_case_count
+        FROM manage_requirement_test_links rtl
+        LEFT JOIN manage_test_cases tc ON tc.test_case_id = rtl.test_case_id
+        GROUP BY rtl.requirement_id
+    ),
+    defect_agg AS (
+        SELECT
+            df.requirement_id,
             JSON_AGG(
                 DISTINCT JSONB_BUILD_OBJECT(
                     'defect_id', df.defect_id,
@@ -443,20 +442,30 @@ BEGIN
                     'status', df.status,
                     'current_assignee', df.current_assignee
                 )
-            ) FILTER (WHERE df.defect_id IS NOT NULL),
-            '[]'::JSONB
-        ) AS defects,
-        COUNT(DISTINCT tc.test_case_id) AS test_case_count,
-        COUNT(DISTINCT df.defect_id) AS total_defect_count,
-        COUNT(DISTINCT CASE WHEN df.status IN ('open', 'in_progress') THEN df.defect_id END) AS open_defect_count
+            ) FILTER (WHERE df.defect_id IS NOT NULL) AS defects,
+            COUNT(DISTINCT df.defect_id) AS total_defect_count,
+            COUNT(DISTINCT CASE WHEN df.status IN ('open', 'in_progress') THEN df.defect_id END) AS open_defect_count
+        FROM manage_defects df
+        GROUP BY df.requirement_id
+    )
+    SELECT
+        req.req_id,
+        req.title AS requirement_title,
+        req.requirement_type,
+        req.status,
+        req.priority,
+        req.assignee,
+        proj.name AS project_name,
+        COALESCE(tca.test_cases, '[]'::JSONB) AS test_cases,
+        COALESCE(da.defects, '[]'::JSONB) AS defects,
+        COALESCE(tca.test_case_count, 0) AS test_case_count,
+        COALESCE(da.total_defect_count, 0) AS total_defect_count,
+        COALESCE(da.open_defect_count, 0) AS open_defect_count
     FROM manage_requirements req
     JOIN manage_projects proj ON proj.project_id = req.project_id
-    LEFT JOIN manage_requirement_test_links rtl ON rtl.requirement_id = req.req_id
-    LEFT JOIN manage_test_cases tc ON tc.test_case_id = rtl.test_case_id
-    LEFT JOIN manage_defects df ON df.requirement_id = req.req_id
+    LEFT JOIN test_case_agg tca ON tca.requirement_id = req.req_id
+    LEFT JOIN defect_agg da ON da.requirement_id = req.req_id
     WHERE req.deleted = FALSE AND req.project_id = p_project_id
-    GROUP BY req.req_id, proj.name, req.title, req.requirement_type,
-             req.status, req.priority, req.assignee
     ORDER BY req.created_at DESC;
 END;
 $$;

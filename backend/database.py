@@ -1,14 +1,17 @@
 """Database connection manager using psycopg2."""
 
-import threading
-import decimal
+from contextlib import contextmanager
 import datetime
+import decimal
+import threading
 import uuid
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Iterator, Optional
 
 import psycopg2
-from psycopg2.extras import RealDictCursor
 from psycopg2 import errors as pg_errors
+from psycopg2 import extensions as pg_extensions
+from psycopg2.extras import RealDictCursor
+from psycopg2.pool import ThreadedConnectionPool
 
 
 def _serialize_value(val):
@@ -34,22 +37,35 @@ def _serialize_row(row: dict) -> dict:
 
 
 class DatabaseManager:
-    """Thread-safe single-connection database manager."""
+    """Thread-safe pooled database manager."""
 
     def __init__(self):
-        self._connection: Optional[psycopg2.extensions.connection] = None
         self._lock = threading.Lock()
+        self._idle = threading.Condition(self._lock)
+        self._pool: Optional[ThreadedConnectionPool] = None
+        self._active_ops = 0
         self._info: Dict[str, Any] = {}
+        self._pool_config = {"minconn": 1, "maxconn": 8}
 
     @property
     def is_connected(self) -> bool:
         with self._lock:
-            if self._connection is None:
-                return False
-            try:
-                return not self._connection.closed
-            except Exception:
-                return False
+            pool = self._pool
+        if pool is None:
+            return False
+
+        conn = None
+        try:
+            conn = pool.getconn()
+            return not conn.closed
+        except Exception:
+            return False
+        finally:
+            if conn is not None and pool is not None:
+                try:
+                    pool.putconn(conn)
+                except Exception:
+                    pass
 
     @property
     def connection_info(self) -> Dict[str, Any]:
@@ -58,11 +74,14 @@ class DatabaseManager:
     def connect(
         self, host: str, port: int, user: str, password: str, database: str
     ) -> Dict[str, Any]:
-        """Establish a new database connection, closing any existing one."""
+        """Establish a new connection pool, closing any existing one."""
+        pool = None
+        version = None
         with self._lock:
-            self._close_internal()
             try:
-                conn = psycopg2.connect(
+                pool = ThreadedConnectionPool(
+                    minconn=self._pool_config["minconn"],
+                    maxconn=self._pool_config["maxconn"],
                     host=host,
                     port=port,
                     user=user,
@@ -70,28 +89,48 @@ class DatabaseManager:
                     database=database,
                 )
             except UnicodeDecodeError as exc:
-                raw_err = getattr(exc, 'object', None)
+                raw_err = getattr(exc, "object", None)
                 if raw_err and isinstance(raw_err, bytes):
-                    msg = raw_err.decode('gbk', errors='replace')
+                    msg = raw_err.decode("gbk", errors="replace")
                     raise RuntimeError(msg)
                 raise
-            conn.autocommit = True
-            self._connection = conn
+
+            test_conn = None
+            try:
+                test_conn = pool.getconn()
+                test_conn.autocommit = True
+                with test_conn.cursor() as cur:
+                    cur.execute("SELECT version()")
+                    version = cur.fetchone()[0]
+            except Exception:
+                if test_conn is not None:
+                    try:
+                        pool.putconn(test_conn, close=True)
+                    except Exception:
+                        pass
+                pool.closeall()
+                raise
+            else:
+                if test_conn is not None:
+                    pool.putconn(test_conn)
+
+            self._wait_for_active_ops_locked()
+            self._close_internal_locked()
+            self._pool = pool
             self._info = {
                 "host": host,
                 "port": port,
                 "user": user,
                 "database": database,
+                "pool_max_connections": self._pool_config["maxconn"],
             }
-            with conn.cursor() as cur:
-                cur.execute("SELECT version()")
-                version = cur.fetchone()[0]
             return {**self._info, "server_version": version}
 
     def disconnect(self):
-        """Close the current connection."""
+        """Close the current connection pool."""
         with self._lock:
-            self._close_internal()
+            self._wait_for_active_ops_locked()
+            self._close_internal_locked()
 
     def execute(self, query, params=None) -> Dict[str, Any]:
         """Execute SQL and return results as a serializable dict.
@@ -100,12 +139,9 @@ class DatabaseManager:
             query: SQL string or psycopg2.sql.Composed object.
             params: Query parameters for parameterized queries.
         """
-        if not self.is_connected:
-            raise RuntimeError("Not connected to any database")
-
-        with self._lock:
-            try:
-                with self._connection.cursor(cursor_factory=RealDictCursor) as cur:
+        try:
+            with self._connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
                     cur.execute(query, params)
                     if cur.description:
                         columns = [desc[0] for desc in cur.description]
@@ -121,28 +157,66 @@ class DatabaseManager:
                         "message": f"OK — {cur.rowcount} row(s) affected",
                         "row_count": cur.rowcount,
                     }
-            except pg_errors.IntegrityError as exc:
-                # Translate psycopg2 IntegrityError to Chinese messages
-                msg = str(exc)
-                if "unique" in msg.lower() or "duplicate" in msg.lower():
-                    raise RuntimeError("违反唯一约束：" + msg)
-                elif "foreign key" in msg.lower():
-                    raise RuntimeError("外键引用无效：" + msg)
-                elif "not-null" in msg.lower():
-                    raise RuntimeError("字段不能为空：" + msg)
-                elif "check" in msg.lower():
-                    raise RuntimeError("数据校验失败：" + msg)
-                else:
-                    raise RuntimeError("数据完整性错误：" + msg)
+        except pg_errors.IntegrityError as exc:
+            # Translate psycopg2 IntegrityError to Chinese messages
+            msg = str(exc)
+            if "unique" in msg.lower() or "duplicate" in msg.lower():
+                raise RuntimeError("违反唯一约束：" + msg)
+            if "foreign key" in msg.lower():
+                raise RuntimeError("外键引用无效：" + msg)
+            if "not-null" in msg.lower():
+                raise RuntimeError("字段不能为空：" + msg)
+            if "check" in msg.lower():
+                raise RuntimeError("数据校验失败：" + msg)
+            raise RuntimeError("数据完整性错误：" + msg)
 
-    def _close_internal(self):
-        """Close connection without acquiring lock (caller must hold lock)."""
-        if self._connection and not self._connection.closed:
+    @contextmanager
+    def _connection(self) -> Iterator[psycopg2.extensions.connection]:
+        """Borrow a connection from the pool for the duration of one operation."""
+        with self._lock:
+            if self._pool is None:
+                raise RuntimeError("Not connected to any database")
+            pool = self._pool
+            self._active_ops += 1
+
+        conn = None
+        try:
+            conn = pool.getconn()
+            conn.autocommit = True
+            yield conn
+        finally:
+            if conn is not None:
+                try:
+                    if (
+                        not conn.closed
+                        and conn.info.transaction_status
+                        != pg_extensions.TRANSACTION_STATUS_IDLE
+                    ):
+                        conn.rollback()
+                except Exception:
+                    pass
+                try:
+                    pool.putconn(conn)
+                except Exception:
+                    pass
+            with self._lock:
+                self._active_ops -= 1
+                if self._active_ops == 0:
+                    self._idle.notify_all()
+
+    def _wait_for_active_ops_locked(self):
+        """Wait until all borrowed connections have been returned."""
+        while self._active_ops > 0:
+            self._idle.wait()
+
+    def _close_internal_locked(self):
+        """Close the pool without acquiring the lock (caller must hold lock)."""
+        if self._pool is not None:
             try:
-                self._connection.close()
+                self._pool.closeall()
             except Exception:
                 pass
-        self._connection = None
+        self._pool = None
         self._info = {}
 
 

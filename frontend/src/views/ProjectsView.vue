@@ -106,7 +106,9 @@ const formError = ref('')
 const form = reactive({ name: '', description: '', status: 'active', product_id: '' })
 
 onMounted(async () => {
-  await Promise.all([loadItems(), loadProducts(), loadStats()])
+  await loadItems()
+  loadProducts()
+  loadStats()
 })
 
 async function loadItems() {

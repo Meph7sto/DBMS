@@ -137,8 +137,8 @@ const filterProject = ref('')
 const form = reactive({ project_id: '', requirement_id: '', title: '', reproduce_steps: '', severity: 'medium', priority: 'P2', status: 'open', current_assignee: '' })
 
 onMounted(async () => {
-  await loadProjects()
   await loadItems()
+  loadProjects()
 })
 
 watch(filterProject, async () => { await loadItems() })

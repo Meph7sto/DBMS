@@ -99,12 +99,13 @@ async function loadMeta() {
     const { data: schemaList } = await listSchemas()
     schemas.value = schemaList.map((s) => s.name)
 
-    const map = {}
-    for (const s of schemas.value) {
-      const { data: tableList } = await listTables(s)
-      map[s] = tableList
-    }
-    tablesMap.value = map
+    const entries = await Promise.all(
+      schemas.value.map(async (schema) => {
+        const { data: tableList } = await listTables(schema)
+        return [schema, tableList]
+      })
+    )
+    tablesMap.value = Object.fromEntries(entries)
   } catch (err) {
     console.error('Failed to load metadata', err)
   }
