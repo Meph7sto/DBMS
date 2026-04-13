@@ -1,28 +1,38 @@
 <template>
-  <header class="page-header" style="margin-bottom: 24px;">
-    <div>
-      <h1 v-if="connection">{{ connection.database }}</h1>
-      <h1 v-else>未连接数据库</h1>
-      <div class="eyebrow" style="margin-top: 6px;">
-        <template v-if="connection">
-          <span style="color:var(--teal)">●</span> 
-          {{ connection.host }}:{{ connection.port }}
-        </template>
-        <template v-else>
-          <span style="color:var(--signal)">●</span> 等待连接...
-        </template>
-      </div>
+  <nav class="nav">
+    <div class="nav-brand">
+      <div class="logo-mark">DB</div>
+      <span>{{ pageTitle }}</span>
     </div>
-    <div class="page-actions">
-      <button v-if="connection" class="danger" @click="$emit('disconnect')">断开连接</button>
-      <button class="primary" @click="$emit('open-connect')">{{ connection ? '切换连接' : '连接数据库' }}</button>
+    <div class="nav-links">
+      <button v-if="connection" class="btn-white" style="color: var(--color-error); border-color: var(--color-error);" @click="$emit('disconnect')">断开连接</button>
+      <button class="btn-brand" @click="$emit('open-connect')">{{ connection ? '切换连接' : '连接数据库' }}</button>
     </div>
-  </header>
+  </nav>
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
 defineProps({ connection: Object })
 defineEmits(['open-connect', 'disconnect'])
+
+const route = useRoute()
+
+const pageTitle = computed(() => {
+  if (!route) return '未连接数据库'
+  const nameMap = {
+    'dashboard': '仪表盘',
+    'query': 'SQL查询',
+    'table': route.params.name ? `数据表: ${route.params.name}` : '表数据',
+    'products': '产品管理',
+    'projects': '项目管理',
+    'requirements': '需求列表',
+    'defects': '缺陷追踪',
+  }
+  return nameMap[route.name] || 'DB Admin'
+})
 </script>
 
 <style scoped>

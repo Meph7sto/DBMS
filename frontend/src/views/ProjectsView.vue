@@ -1,14 +1,10 @@
 <template>
   <div class="page" style="display:flex;flex-direction:column;gap:20px;height:100%;overflow-y:auto;padding-right:8px;">
-    <div class="page-header">
-      <div>
-        <div class="eyebrow" style="margin-bottom:6px">项目管理</div>
-        <h1 style="margin:0">项目列表</h1>
-      </div>
-      <button class="primary" @click="showForm = true">+ 新建项目</button>
+    <div class="page-header" style="justify-content: flex-end;">
+      <button class="btn-brand" @click="showForm = true">+ 新建项目</button>
     </div>
 
-    <div v-if="error" style="padding:12px 16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:var(--signal);font-size:13px;">{{ error }}</div>
+    <div v-if="error" style="padding:12px 16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius: 0;color:var(--signal);font-size:13px;">{{ error }}</div>
 
     <div v-if="items.length" class="card wide" style="overflow:auto;">
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -84,7 +80,7 @@
               <option value="archived">archived</option>
             </select>
           </div>
-          <div v-if="formError" style="padding:10px;color:var(--signal);font-size:13px;background:rgba(239,68,68,0.08);border-radius:6px;">{{ formError }}</div>
+          <div v-if="formError" style="padding:10px;color:var(--signal);font-size:13px;background:rgba(239,68,68,0.08);border-radius: 0;">{{ formError }}</div>
         </div>
         <div class="modal-footer">
           <button class="ghost" @click="closeForm">取消</button>
@@ -191,14 +187,14 @@ function formatTime(ts) {
 .stat-value { font-size: 20px; font-weight: 700; color: var(--ink-700); }
 .stat-label { font-size: 11px; color: rgba(28,40,52,0.5); text-transform: uppercase; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal { background: var(--paper); border-radius: 12px; width: 480px; max-width: 90vw; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.modal { background: var(--bg-card); border-radius: 0; width: 480px; max-width: 90vw; box-shadow: none; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid rgba(28,40,52,0.1); }
 .modal-header h2 { margin: 0; font-size: 16px; }
 .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
 .modal-footer { padding: 16px 24px; border-top: 1px solid rgba(28,40,52,0.1); display: flex; gap: 12px; justify-content: flex-end; }
 .form-group { display: flex; flex-direction: column; gap: 6px; }
 .form-group label { font-size: 12px; color: rgba(28,40,52,0.6); font-weight: 500; }
-.form-group input, .form-group textarea, .form-group select { padding: 8px 12px; border: 1px solid rgba(28,40,52,0.2); border-radius: 6px; font-size: 13px; background: rgba(28,40,52,0.02); }
+.form-group input, .form-group textarea, .form-group select { padding: 8px 12px; border: 1px solid rgba(28,40,52,0.2); border-radius: 0; font-size: 13px; background: rgba(28,40,52,0.02); }
 .form-group textarea { resize: vertical; }
 .page::-webkit-scrollbar { width: 6px; }
 .page::-webkit-scrollbar-thumb { background: rgba(28,40,52,0.2); }

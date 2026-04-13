@@ -1,9 +1,9 @@
 <template>
   <div class="query-page" style="display:flex;flex-direction:column;gap:16px;height:100%;">
     <div class="card" style="padding:0; overflow:hidden">
-      <div class="card-header" style="padding: 16px 20px 0 20px;">
-         <h4 class="card-kicker">SQL 编辑器</h4>
-         <div class="hero-actions" style="margin:0">
+      <div class="card-header" style="padding: 16px 20px; margin-bottom: 0;">
+         <h4 class="card-kicker" style="margin: 0;">SQL 编辑器</h4>
+         <div class="hero-actions" style="margin: 0; display: flex; align-items: center;">
            <span class="eyebrow" style="margin-right:12px;text-transform:none">Ctrl + Enter 执行</span>
            <button class="ghost" @click="sqlText = ''">清空</button>
            <button class="primary" :disabled="running" @click="run">
@@ -11,7 +11,7 @@
            </button>
          </div>
       </div>
-      <div style="border-top: 1px solid rgba(28,40,52,0.12); border-bottom: 1px solid rgba(28,40,52,0.12); margin-top: 10px; min-height: 200px; display:flex;">
+      <div style="border-bottom: 1px solid rgba(28,40,52,0.12); min-height: 200px; display:flex;">
         <SqlEditor v-model="sqlText" @execute="run" style="flex:1;" />
       </div>
       <div v-if="elapsed !== null" style="padding: 8px 20px; font-size: 11px; color: rgba(28,40,52,0.6);" class="eyebrow">

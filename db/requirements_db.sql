@@ -291,6 +291,18 @@ CREATE INDEX idx_audit_logs_created_at ON manage_audit_logs(created_at DESC);
 
 -- 视图1: 需求完整视图（包含测试用例和缺陷数量）
 CREATE OR REPLACE VIEW v_requirement_details AS
+WITH test_stats AS (
+    SELECT requirement_id, COUNT(DISTINCT test_case_id) AS test_case_count
+    FROM manage_requirement_test_links
+    GROUP BY requirement_id
+),
+defect_stats AS (
+    SELECT requirement_id, 
+           COUNT(DISTINCT defect_id) AS defect_count,
+           COUNT(DISTINCT CASE WHEN status IN ('open', 'in_progress') THEN defect_id END) AS open_defect_count
+    FROM manage_defects
+    GROUP BY requirement_id
+)
 SELECT
     r.req_id,
     r.project_id,
@@ -301,49 +313,82 @@ SELECT
     r.assignee,
     r.created_at AS requirement_created_at,
     p.name AS project_name,
-    COUNT(DISTINCT rtl.test_case_id) AS test_case_count,
-    COUNT(DISTINCT d.defect_id) AS defect_count,
-    COUNT(DISTINCT CASE WHEN d.status IN ('open', 'in_progress') THEN d.defect_id END) AS open_defect_count,
-    CASE WHEN COUNT(DISTINCT rtl.test_case_id) > 0 THEN TRUE ELSE FALSE END AS has_test_coverage
+    COALESCE(ts.test_case_count, 0) AS test_case_count,
+    COALESCE(ds.defect_count, 0) AS defect_count,
+    COALESCE(ds.open_defect_count, 0) AS open_defect_count,
+    CASE WHEN COALESCE(ts.test_case_count, 0) > 0 THEN TRUE ELSE FALSE END AS has_test_coverage
 FROM manage_requirements r
 JOIN manage_projects p ON p.project_id = r.project_id
-LEFT JOIN manage_requirement_test_links rtl ON rtl.requirement_id = r.req_id
-LEFT JOIN manage_defects d ON d.requirement_id = r.req_id
-WHERE r.deleted = FALSE
-GROUP BY r.req_id, r.project_id, p.name, r.title, r.requirement_type,
-         r.status, r.priority, r.assignee, r.created_at;
+LEFT JOIN test_stats ts ON ts.requirement_id = r.req_id
+LEFT JOIN defect_stats ds ON ds.requirement_id = r.req_id
+WHERE r.deleted = FALSE;
 
 -- 视图2: 项目统计视图
 CREATE OR REPLACE VIEW v_project_statistics AS
+WITH req_stats AS (
+    SELECT project_id,
+           COUNT(*) FILTER (WHERE deleted = FALSE) AS total_requirements,
+           COUNT(*) FILTER (WHERE requirement_type = 'top_level' AND deleted = FALSE) AS top_level_count,
+           COUNT(*) FILTER (WHERE requirement_type = 'low_level' AND deleted = FALSE) AS low_level_count,
+           COUNT(*) FILTER (WHERE status = 'completed' AND deleted = FALSE) AS completed_count,
+           COUNT(*) FILTER (WHERE status = 'in_progress' AND deleted = FALSE) AS in_progress_count,
+           COUNT(*) FILTER (WHERE status = 'draft' AND deleted = FALSE) AS draft_count
+    FROM manage_requirements
+    GROUP BY project_id
+),
+def_stats AS (
+    SELECT project_id,
+           COUNT(*) AS total_defects,
+           COUNT(*) FILTER (WHERE severity = 'critical') AS critical_defects,
+           COUNT(*) FILTER (WHERE status IN ('open', 'in_progress')) AS open_defects
+    FROM manage_defects
+    GROUP BY project_id
+),
+tc_stats AS (
+    SELECT project_id, COUNT(*) AS total_test_cases
+    FROM manage_test_cases
+    GROUP BY project_id
+),
+ms_stats AS (
+    SELECT project_id,
+           COUNT(*) AS total_milestones,
+           COUNT(*) FILTER (WHERE is_baseline = TRUE) AS baseline_count
+    FROM manage_milestones
+    GROUP BY project_id
+),
+br_stats AS (
+    SELECT project_id, COUNT(*) AS total_branches
+    FROM manage_branches
+    GROUP BY project_id
+)
 SELECT
     p.project_id,
     p.name AS project_name,
     p.status AS project_status,
-    COUNT(DISTINCT r.req_id) FILTER (WHERE r.deleted = FALSE) AS total_requirements,
-    COUNT(DISTINCT r.req_id) FILTER (WHERE r.requirement_type = 'top_level' AND r.deleted = FALSE) AS top_level_count,
-    COUNT(DISTINCT r.req_id) FILTER (WHERE r.requirement_type = 'low_level' AND r.deleted = FALSE) AS low_level_count,
-    COUNT(DISTINCT r.req_id) FILTER (WHERE r.status = 'completed' AND r.deleted = FALSE) AS completed_count,
-    COUNT(DISTINCT r.req_id) FILTER (WHERE r.status = 'in_progress' AND r.deleted = FALSE) AS in_progress_count,
-    COUNT(DISTINCT r.req_id) FILTER (WHERE r.status = 'draft' AND r.deleted = FALSE) AS draft_count,
-    COUNT(DISTINCT d.defect_id) AS total_defects,
-    COUNT(DISTINCT d.defect_id) FILTER (WHERE d.severity = 'critical') AS critical_defects,
-    COUNT(DISTINCT d.defect_id) FILTER (WHERE d.status IN ('open', 'in_progress')) AS open_defects,
-    COUNT(DISTINCT tc.test_case_id) AS total_test_cases,
-    COUNT(DISTINCT m.milestone_id) AS total_milestones,
-    COUNT(DISTINCT m.milestone_id) FILTER (WHERE m.is_baseline = TRUE) AS baseline_count,
-    COUNT(DISTINCT b.branch_id) AS total_branches,
-    ROUND(
-        COUNT(DISTINCT r.req_id) FILTER (WHERE r.status = 'completed' AND r.deleted = FALSE)::NUMERIC /
-        NULLIF(COUNT(DISTINCT r.req_id) FILTER (WHERE r.deleted = FALSE), 0) * 100,
-        2
-    ) AS completion_rate_percent
+    COALESCE(r.total_requirements, 0) AS total_requirements,
+    COALESCE(r.top_level_count, 0) AS top_level_count,
+    COALESCE(r.low_level_count, 0) AS low_level_count,
+    COALESCE(r.completed_count, 0) AS completed_count,
+    COALESCE(r.in_progress_count, 0) AS in_progress_count,
+    COALESCE(r.draft_count, 0) AS draft_count,
+    COALESCE(d.total_defects, 0) AS total_defects,
+    COALESCE(d.critical_defects, 0) AS critical_defects,
+    COALESCE(d.open_defects, 0) AS open_defects,
+    COALESCE(tc.total_test_cases, 0) AS total_test_cases,
+    COALESCE(m.total_milestones, 0) AS total_milestones,
+    COALESCE(m.baseline_count, 0) AS baseline_count,
+    COALESCE(b.total_branches, 0) AS total_branches,
+    CASE 
+        WHEN COALESCE(r.total_requirements, 0) > 0 THEN 
+            ROUND((COALESCE(r.completed_count, 0)::NUMERIC / r.total_requirements) * 100, 2)
+        ELSE 0 
+    END AS completion_rate_percent
 FROM manage_projects p
-LEFT JOIN manage_requirements r ON r.project_id = p.project_id
-LEFT JOIN manage_defects d ON d.project_id = p.project_id
-LEFT JOIN manage_test_cases tc ON tc.project_id = p.project_id
-LEFT JOIN manage_milestones m ON m.project_id = p.project_id
-LEFT JOIN manage_branches b ON b.project_id = p.project_id
-GROUP BY p.project_id, p.name, p.status;
+LEFT JOIN req_stats r ON r.project_id = p.project_id
+LEFT JOIN def_stats d ON d.project_id = p.project_id
+LEFT JOIN tc_stats tc ON tc.project_id = p.project_id
+LEFT JOIN ms_stats m ON m.project_id = p.project_id
+LEFT JOIN br_stats b ON b.project_id = p.project_id;
 
 -- ============================================================
 -- 十、复杂查询 (Complex Queries)

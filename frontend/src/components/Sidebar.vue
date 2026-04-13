@@ -1,12 +1,13 @@
 <template>
   <aside class="rail" :class="{ collapsed: isCollapsed }">
-    <button class="sidebar-toggle" @click="isCollapsed = !isCollapsed">
-      <span>◁</span>
-    </button>
-
     <div class="brand">
-      <div class="brand-mark">Db</div>
-      <div class="brand-sub">数据系统</div>
+      <button class="sidebar-toggle" @click="isCollapsed = !isCollapsed" :title="isCollapsed ? '展开侧边栏' : '折叠侧边栏'">
+        <span>{{ isCollapsed ? '▷' : '◁' }}</span>
+      </button>
+      <div class="brand-content">
+        <div class="brand-mark">DB</div>
+        <div class="brand-sub">数据系统</div>
+      </div>
     </div>
 
     <nav class="rail-nav">
@@ -64,9 +65,9 @@
     </nav>
 
     <div class="rail-meta">
-      <div class="meta-block" v-if="!isCollapsed">
-        <div class="meta-title">操作选项</div>
-        <button class="ghost" style="width: 100%; border: 1px solid rgba(28,40,52,0.2)" @click="$emit('refresh')">↻ 刷新数据库字典</button>
+      <div class="meta-block" v-if="!isCollapsed" style="padding: 16px;">
+        <div class="type-sample-label" style="margin-bottom: 12px;">操作选项</div>
+        <button class="btn-warm-sand" style="width: 100%;" @click="$emit('refresh')">↻ 刷新数据库字典</button>
       </div>
     </div>
   </aside>
@@ -100,5 +101,91 @@ function toggleSchema(s) {
 </script>
 
 <style scoped>
-/* Styles inherited from global ref-styles.css */
+.ref-app .brand {
+  position: relative;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-cream);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-direction: row-reverse;
+}
+
+.ref-app .brand-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: opacity 0.2s ease, max-width 0.2s ease;
+  max-width: 200px;
+}
+
+.ref-app .brand-mark {
+  font-family: "Noto Serif SC", Georgia, serif;
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: var(--near-black);
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+}
+
+.ref-app .brand-sub {
+  color: var(--olive-gray);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-top: 6px;
+  font-weight: 500;
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+}
+
+/* 鼠标靠近按钮时隐藏品牌内容 */
+.ref-app .sidebar-toggle:hover ~ .brand-content {
+  opacity: 0;
+  max-width: 0;
+}
+
+/* 折叠状态：品牌内容隐藏 */
+.ref-app .rail.collapsed .brand-content {
+  display: none;
+}
+
+.ref-app .rail.collapsed .brand {
+  justify-content: center;
+  padding-right: 0;
+}
+
+/* 折叠状态下显示展开按钮图标 */
+.ref-app .rail.collapsed .sidebar-toggle {
+  position: static;
+  transform: none;
+}
+
+.ref-app .sidebar-toggle {
+  position: relative;
+  top: auto;
+  right: auto;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid var(--border-warm);
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  color: var(--olive-gray);
+  transition: all 0.2s ease;
+  box-shadow: 0px 0px 0px 1px var(--ring-warm);
+  flex-shrink: 0;
+}
+
+.ref-app .sidebar-toggle:hover {
+  background: var(--warm-sand);
+  color: var(--near-black);
+  box-shadow: 0px 0px 0px 1px var(--ring-deep);
+}
 </style>

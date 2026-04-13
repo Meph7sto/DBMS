@@ -4,9 +4,11 @@
       <div class="hero-panel">
         <div class="eyebrow">终端面板</div>
         <h1>DBMS 数据库管理系统</h1>
-        <p class="lead">使用现代数据终端轻松地可视化、管理和查询您的数据库。</p>
+
         <div class="hero-actions" v-if="connection">
-          <router-link to="/query" class="primary">✦ 新建查询</router-link>
+          <router-link to="/query" class="btn-brand">✦ 新建查询</router-link>
+          <button @click="handleImportBenchmark" class="btn-white" :disabled="isLoading">引入测试数据</button>
+          <button @click="handleDeleteBenchmark" class="btn-white" :disabled="isLoading" style="color: var(--error); border-color: var(--error);">删除测试数据</button>
         </div>
       </div>
       <div class="hero-panel">
@@ -26,34 +28,13 @@
       </div>
     </div>
 
-    <div v-if="connection" class="grid anim-slide" style="margin-top: 24px;">
-      <div class="card">
-        <div class="card-header">
-          <h4 class="card-kicker">数据库模式</h4>
-          <span class="chip chip-accent">总计: {{ schemas.length }}</span>
-        </div>
-        <h2>模式列表</h2>
-        <div class="chip-row">
-          <span v-for="s in schemas.slice(0, 8)" :key="s" class="chip chip-neutral">{{ s }}</span>
-          <span v-if="schemas.length > 8" class="chip chip-neutral">...</span>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <h4 class="card-kicker">数据表</h4>
-          <span class="chip chip-good">总计: {{ totalTables }}</span>
-        </div>
-        <h2>全部数据表</h2>
-        <div class="chip-row">
-           <span class="chip chip-good">数据已就绪</span>
-        </div>
-      </div>
-    </div>
+
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { importBenchmark, deleteBenchmark } from '../api'
 
 const props = defineProps({
   connection: Object,
@@ -64,6 +45,34 @@ const props = defineProps({
 const totalTables = computed(() =>
   Object.values(props.tablesMap).reduce((sum, list) => sum + list.length, 0)
 )
+
+const isLoading = ref(false)
+
+const handleImportBenchmark = async () => {
+  if (!confirm("确定要引入基准测试数据吗？（原有基准数据将被清空重新生成，这可能需要几十秒的时间）")) return;
+  try {
+    isLoading.value = true;
+    await importBenchmark();
+    alert('测试数据引入成功！');
+  } catch (e) {
+    alert('测试数据引入失败: ' + (e.response?.data?.detail || e.message));
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+const handleDeleteBenchmark = async () => {
+  if (!confirm("确定要删除所有基准测试数据吗？")) return;
+  try {
+    isLoading.value = true;
+    await deleteBenchmark();
+    alert('测试数据删除成功！');
+  } catch (e) {
+    alert('测试数据删除失败: ' + (e.response?.data?.detail || e.message));
+  } finally {
+    isLoading.value = false;
+  }
+}
 </script>
 
 <style scoped>

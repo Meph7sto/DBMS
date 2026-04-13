@@ -1,29 +1,29 @@
 <template>
   <div style="display:flex;flex-direction:column;height:100%;">
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid rgba(28,40,52,0.1); background: rgba(28,40,52,0.02)">
-      <span class="eyebrow">{{ title }}</span>
-      <span v-if="rowCount !== null" class="eyebrow" style="color:var(--accent)">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--border-color); background: var(--bg-card)">
+      <span class="type-sample-label" style="font-size: 13px;">{{ title }}</span>
+      <span v-if="rowCount !== null" class="type-sample-label" style="color:var(--color-terracotta); font-size: 13px;">
         共 {{ rowCount }} 行
       </span>
     </div>
 
-    <div v-if="error" style="padding: 16px 20px; color: var(--signal); font-family: monospace; font-size: 13px;">{{ error }}</div>
+    <div v-if="error" style="padding: 16px 20px; color: var(--color-error); font-family: var(--font-mono); font-size: 13px;">{{ error }}</div>
 
-    <div v-else-if="message" style="padding: 16px 20px; color: var(--teal); font-family: monospace; font-size: 13px;">{{ message }}</div>
+    <div v-else-if="message" style="padding: 16px 20px; color: var(--text-secondary); font-family: var(--font-mono); font-size: 13px;">{{ message }}</div>
 
     <div v-else-if="columns.length" style="flex:1; overflow:auto;">
-      <table style="width:100%; border-collapse:collapse; font-family: monospace; font-size:12px; text-align:left;">
-        <thead style="position:sticky; top:0; background:var(--paper); z-index:1; border-bottom: 1px solid rgba(28,40,52,0.2);">
+      <table style="width:100%; border-collapse:collapse; font-family: var(--font-mono); font-size:13px; text-align:left;">
+        <thead style="position:sticky; top:0; background:var(--bg-card); z-index:1;">
           <tr>
-            <th style="padding: 8px 12px; color:rgba(28,40,52,0.5); width:40px">#</th>
-            <th v-for="col in columns" :key="col" style="padding: 8px 12px; color:rgba(28,40,52,0.8); white-space:nowrap;">{{ col }}</th>
+            <th style="padding: 12px 16px; color:var(--text-tertiary); width:40px; font-weight: normal; border-bottom: 1px solid var(--border-color);">#</th>
+            <th v-for="col in columns" :key="col" style="padding: 12px 16px; color:var(--text-secondary); white-space:nowrap; font-weight: normal; border-bottom: 1px solid var(--border-color);">{{ col }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, i) in rows" :key="i" style="border-bottom: 1px solid rgba(28,40,52,0.06);">
-            <td style="padding: 6px 12px; color:rgba(28,40,52,0.4);">{{ i + 1 }}</td>
-            <td v-for="col in columns" :key="col" style="padding: 6px 12px; white-space:nowrap;">
-              <span v-if="row[col] === null" style="color:rgba(28,40,52,0.3); font-style:italic">NULL</span>
+          <tr v-for="(row, i) in rows" :key="i" style="border-bottom: 1px solid var(--border-subtle);">
+            <td style="padding: 8px 16px; color:var(--text-tertiary);">{{ i + 1 }}</td>
+            <td v-for="col in columns" :key="col" style="padding: 8px 16px; white-space:nowrap; color: var(--text-primary);">
+              <span v-if="row[col] === null" style="color:var(--text-tertiary); font-style:italic">NULL</span>
               <span v-else>{{ row[col] }}</span>
             </td>
           </tr>
@@ -31,7 +31,7 @@
       </table>
     </div>
 
-    <div v-else style="padding: 40px; text-align:center; color:rgba(28,40,52,0.4); font-size:13px;">执行查询以查看结果</div>
+    <div v-else style="padding: 40px; text-align:center; color:var(--text-tertiary); font-size:14px;">执行查询以查看结果</div>
   </div>
 </template>
 
@@ -49,6 +49,6 @@ defineProps({
 <style scoped>
 /* Inherited */
 tbody tr:hover {
-  background: rgba(47, 143, 137, 0.05);
+  background: rgba(201, 100, 66, 0.05);
 }
 </style>

@@ -22,13 +22,13 @@ let view = null
 
 const customTheme = EditorView.theme({
   '&': {
-    backgroundColor: 'rgba(28, 40, 52, 0.03)',
-    color: 'var(--ink-950, #1b2730)',
+    backgroundColor: 'rgba(20, 20, 19, 0.02)',
+    color: 'var(--near-black, #141413)',
     fontSize: '14px',
   },
   '.cm-content': {
     fontFamily: "'DM Mono', 'Fira Code', 'JetBrains Mono', monospace",
-    caretColor: 'var(--ink-900, #23323d)',
+    caretColor: 'var(--charcoal, #4d4c48)',
     padding: '12px 0',
   },
   '.cm-line': {
@@ -36,25 +36,25 @@ const customTheme = EditorView.theme({
   },
   '.cm-gutters': {
     backgroundColor: 'transparent',
-    color: 'rgba(28, 40, 52, 0.4)',
-    borderRight: '1px solid rgba(28, 40, 52, 0.08)',
+    color: 'var(--stone-gray, #87867f)',
+    borderRight: '1px solid var(--border-cream, #f0eee6)',
   },
   '&.cm-focused': {
     outline: 'none',
   },
   '&.cm-focused .cm-cursor': {
-    borderLeftColor: 'var(--accent, #c4692f)',
+    borderLeftColor: 'var(--terracotta, #c96442)',
     borderLeftWidth: '2px',
   },
   '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(201, 100, 66, 0.15)',
   },
   '.cm-activeLine': {
-    backgroundColor: 'rgba(28, 40, 52, 0.04)',
+    backgroundColor: 'rgba(20, 20, 19, 0.03)',
   },
   '.cm-activeLineGutter': {
     backgroundColor: 'transparent',
-    color: 'var(--ink-700, #394956)',
+    color: 'var(--olive-gray, #5e5d59)',
   },
 })
 

@@ -1,0 +1,178 @@
+/* --- PAGE HEADER --- */
+
+.ref-app .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 20px 24px;
+  border-radius: 0;
+  background: var(--ivory);
+  border: 1px solid var(--border-cream);
+  box-shadow: none;
+  margin-bottom: 24px;
+}
+
+.ref-app .page-header h1 {
+  margin: 0;
+  font-family: "Noto Serif SC", Georgia, serif;
+  font-size: clamp(20px, 2vw, 26px);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--near-black);
+}
+
+.ref-app .page-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.ref-app .eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--olive-gray);
+  margin-top: 6px;
+}
+
+
+/* --- HERO SECTION --- */
+
+.ref-app .hero {
+  display: grid;
+  grid-template-columns: 1.3fr 0.7fr;
+  gap: 24px;
+  padding: 28px 32px;
+  border-radius: 0;
+  background: var(--ivory);
+  border: 1px solid var(--border-cream);
+  box-shadow: none;
+}
+
+.ref-app .hero.head-hero {
+  background: var(--ivory);
+  border-color: var(--border-warm);
+}
+
+.ref-app .hero h1 {
+  font-family: "Noto Serif SC", Georgia, serif;
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 500;
+  line-height: 1.15;
+  margin: 12px 0 16px;
+  color: var(--near-black);
+}
+
+.ref-app .lead {
+  font-size: 17px;
+  line-height: 1.65;
+  max-width: 520px;
+  color: var(--olive-gray);
+}
+
+.ref-app .hero-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.ref-app .hero-panel {
+  display: grid;
+  gap: 16px;
+}
+
+
+/* --- PAGE HEADER NAV STYLE --- */
+
+.ref-app .page-header.nav-style {
+  border-radius: 0;
+  padding: 12px 24px;
+  align-items: center;
+  margin-bottom: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+}
+
+.ref-app .page-header.nav-style:first-child {
+  border-radius: 0;
+}
+
+/* --- PREVIEW COLOR GROUPS --- */
+.ref-app .color-group { margin-bottom: 40px; }
+.ref-app .color-group-title {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.2;
+  margin-bottom: 20px;
+  color: var(--text-secondary);
+}
+.ref-app .color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+.ref-app .color-swatch {
+  border: 1px solid var(--border-color);
+  border-radius: 0;
+  overflow: hidden;
+}
+.ref-app .color-swatch-block {
+  height: 80px;
+  position: relative;
+}
+.ref-app .color-swatch-info {
+  padding: 12px;
+  background: var(--bg-card);
+}
+.ref-app .color-swatch-name { font-family: var(--font-sans); font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.ref-app .color-swatch-hex { font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px; }
+.ref-app .color-swatch-role { font-size: 12px; color: var(--text-tertiary); line-height: 1.4; }
+
+/* --- PREVIEW TYPOGRAPHY --- */
+.ref-app .type-sample { margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid var(--border-subtle); }
+.ref-app .type-sample:last-child { border-bottom: none; }
+.ref-app .type-sample-text { margin-bottom: 8px; }
+.ref-app .type-sample-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.ref-app .spacing-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.ref-app .spacing-item { text-align: center; }
+.ref-app .spacing-box {
+  background: rgba(201,100,66,0.10);
+  border: 1px solid rgba(201,100,66,0.25);
+  border-radius: 0;
+  margin-bottom: 8px;
+}
+.ref-app .spacing-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.ref-app .radius-row { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+.ref-app .radius-item { text-align: center; }
+.ref-app .radius-box {
+  width: 80px;
+  height: 80px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-warm);
+  margin-bottom: 8px;
+}
+.ref-app .radius-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.ref-app .radius-context {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}

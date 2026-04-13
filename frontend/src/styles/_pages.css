@@ -1,0 +1,381 @@
+/* --- EMPTY STATES & MESSAGES --- */
+
+.ref-app .empty-state {
+  font-size: 14px;
+  color: var(--stone-gray);
+  padding: 24px;
+  border-radius: 0;
+  background: var(--ivory);
+  border: 1px dashed var(--border-warm);
+  text-align: center;
+}
+
+.ref-app .note-box {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border-warm);
+  font-size: 12px;
+  color: var(--olive-gray);
+  line-height: 1.5;
+}
+
+.ref-app .note-box p {
+  margin: 4px 0;
+}
+
+
+/* --- LOGIN CARD --- */
+
+.ref-app .login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 48px 24px;
+  background: var(--parchment);
+}
+
+.ref-app .login-card {
+  width: min(900px, 100%);
+  background: var(--ivory);
+  border: 1px solid var(--border-cream);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 36px 40px;
+  display: grid;
+  gap: 28px;
+}
+
+.ref-app .login-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.ref-app .login-header h1 {
+  margin: 12px 0 8px;
+  font-family: "Noto Serif SC", Georgia, serif;
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 500;
+}
+
+.ref-app .login-brand {
+  display: grid;
+  justify-items: end;
+  text-align: right;
+  gap: 6px;
+}
+
+.ref-app .login-mark {
+  font-family: "Noto Serif SC", Georgia, serif;
+  font-size: 24px;
+  letter-spacing: 3px;
+  font-weight: 500;
+}
+
+.ref-app .login-sub {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--olive-gray);
+}
+
+.ref-app .login-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 28px;
+}
+
+.ref-app .login-panel h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-family: "Noto Serif SC", Georgia, serif;
+  font-weight: 500;
+}
+
+.ref-app .login-caption {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--olive-gray);
+}
+
+.ref-app .login-field {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.ref-app .login-field label {
+  color: var(--olive-gray);
+  font-weight: 500;
+}
+
+.ref-app .login-form input,
+.ref-app .login-form select {
+  background: var(--white);
+  border: 1px solid var(--border-cream);
+  color: var(--near-black);
+  padding: 10px 14px;
+  border-radius: 0;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.ref-app .login-form input:focus,
+.ref-app .login-form select:focus {
+  outline: none;
+  border-color: var(--focus-blue);
+  box-shadow: 0px 0px 0px 2px rgba(56, 152, 236, 0.2);
+}
+
+.ref-app .login-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.ref-app .login-hint {
+  font-size: 12px;
+  color: var(--olive-gray);
+  border-left: 2px solid rgba(201, 100, 66, 0.4);
+  padding-left: 12px;
+  line-height: 1.5;
+}
+
+.ref-app .login-hint.error {
+  color: var(--error);
+  border-left-color: rgba(181, 51, 51, 0.4);
+}
+
+
+/* --- REPORT GRID --- */
+
+.ref-app .report-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.ref-app .report-card {
+  padding: 18px;
+  border-radius: 0;
+  background: var(--ivory);
+  border: 1px solid var(--border-cream);
+  display: grid;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.ref-app .report-card:hover {
+  box-shadow: none;
+  border-color: var(--border-warm);
+}
+
+.ref-app .report-card h3 {
+  margin: 0;
+  font-size: 14px;
+  font-family: "Noto Serif SC", Georgia, serif;
+  font-weight: 500;
+  color: var(--near-black);
+}
+
+.ref-app .report-card p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--stone-gray);
+}
+
+
+/* --- STUDENT TOOLBAR & TABLE --- */
+
+.ref-app .student-toolbar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.ref-app .student-toolbar input,
+.ref-app .student-toolbar select {
+  background: var(--white);
+  border: 1px solid var(--border-cream);
+  color: var(--near-black);
+  padding: 10px 14px;
+  border-radius: 0;
+  font-size: 13px;
+  min-width: 200px;
+}
+
+.ref-app .student-table {
+  display: grid;
+  gap: 12px;
+}
+
+.ref-app .student-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 16px 18px;
+  border-radius: 0;
+  background: var(--ivory);
+  border: 1px solid var(--border-cream);
+  transition: all 0.2s ease;
+}
+
+.ref-app .student-row:hover {
+  background: var(--white);
+  box-shadow: none;
+}
+
+.ref-app .student-row h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-family: "Noto Serif SC", Georgia, serif;
+  font-weight: 500;
+  color: var(--near-black);
+}
+
+.ref-app .student-row p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--stone-gray);
+}
+
+.ref-app .student-meta {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+  text-align: right;
+}
+
+.ref-app .student-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+
+/* --- ROLE GRID --- */
+
+.ref-app .role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ref-app .role-card {
+  border: 1px solid var(--border-warm);
+  background: var(--white);
+  border-radius: 0;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 72px;
+}
+
+.ref-app .role-card > div {
+  flex: 1;
+}
+
+.ref-app .role-card .chip {
+  flex-shrink: 0;
+  margin-top: 0;
+}
+
+.ref-app .role-card h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-family: "Noto Serif SC", Georgia, serif;
+  font-weight: 500;
+  color: var(--near-black);
+}
+
+.ref-app .role-card p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--olive-gray);
+  line-height: 1.4;
+}
+
+.ref-app .role-card.active {
+  border-color: var(--terracotta);
+  background: rgba(201, 100, 66, 0.08);
+  box-shadow: 0px 0px 0px 1px rgba(201, 100, 66, 0.3);
+}
+
+
+/* --- MATRIX --- */
+
+.ref-app .matrix {
+  display: grid;
+  gap: 8px;
+}
+
+.ref-app .matrix-row {
+  display: grid;
+  grid-template-columns: 0.8fr repeat(5, 1fr);
+  gap: 8px;
+  font-size: 13px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-cream);
+}
+
+.ref-app .matrix-row:last-child {
+  border-bottom: none;
+}
+
+.ref-app .matrix-row.head {
+  color: var(--olive-gray);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ref-app .slot {
+  padding: 8px 10px;
+  border-radius: 0;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ref-app .slot.free {
+  background: var(--warm-sand);
+  color: var(--olive-gray);
+}
+
+.ref-app .slot.busy {
+  background: rgba(201, 100, 66, 0.15);
+  color: var(--terracotta);
+}
+
+.ref-app .slot.maint {
+  background: rgba(181, 51, 51, 0.1);
+  color: var(--error);
+}
+
+
+/* --- STUDENT DETAIL --- */
+
+.ref-app .student-detail {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 0;
+  background: var(--warm-sand);
+  border: 1px solid var(--border-warm);
+}
+

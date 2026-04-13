@@ -22,6 +22,10 @@ export const tableData = (schema, name, page = 1, size = 50) =>
 /* ── Query ── */
 export const executeQuery = (sql) => api.post('/query', { sql })
 
+/* ── Benchmark ── */
+export const importBenchmark = () => api.post('/benchmark/import')
+export const deleteBenchmark = () => api.post('/benchmark/delete')
+
 
 /* ── CRUD: Products ── */
 export const listProducts = () => api.get('/crud/products')
