@@ -1,6 +1,7 @@
 <template>
   <div class="page" style="display:flex;flex-direction:column;gap:20px;height:100%;overflow-y:auto;padding-right:8px;">
-    <div class="page-header" style="justify-content: flex-end;">
+    <div class="page-header" style="justify-content: space-between; align-items: center;">
+      <h1 style="margin: 0; font-size: 20px; color: var(--near-black);">需求列表</h1>
       <div style="display:flex;gap:10px;align-items:center;">
         <select v-model="filterProject" style="padding: 0 12px; border: 1px solid rgba(28,40,52,0.2); border-radius: 0; font-size: 14px; background: rgba(28,40,52,0.02); height: 36px; outline: none; box-sizing: border-box;">
           <option value="">全部项目</option>

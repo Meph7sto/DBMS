@@ -105,6 +105,29 @@ class LocalPostgresTests(unittest.TestCase):
         self.assertEqual(info["log_file"], str(log_file))
         self.assertEqual(mocked_run.call_count, 1)
 
+    def test_get_log_file_falls_back_to_data_dir_when_configured_path_is_unwritable(self) -> None:
+        installation = local_postgres.LocalPostgresInstallation(
+            install_dir=Path("W:/fake-postgres"),
+            bin_dir=Path("W:/fake-postgres/bin"),
+            data_dir=Path("W:/fake-postgres/data"),
+            port=5438,
+        )
+        configured = Path("W:/fake-postgres/pg_ctl-start.log")
+        fallback = installation.data_dir / "pg_ctl-start.log"
+
+        with mock.patch.dict(
+            os.environ,
+            {"LOCAL_PG_LOG_FILE": str(configured)},
+            clear=False,
+        ):
+            with mock.patch(
+                "local_postgres._can_write_log_file",
+                side_effect=lambda path: path == fallback,
+            ):
+                log_file = local_postgres._get_log_file(installation)
+
+        self.assertEqual(log_file, fallback)
+
 
 if __name__ == "__main__":
     unittest.main()

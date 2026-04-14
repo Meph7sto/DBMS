@@ -20,12 +20,80 @@ function Test-TcpPort {
         [int]$Port
     )
 
+    $hostsToTry = @($ServerHost)
+    if ($ServerHost -in @("localhost", "127.0.0.1", "::1")) {
+        $hostsToTry = @($ServerHost, "127.0.0.1", "localhost", "::1") | Select-Object -Unique
+    }
+
+    foreach ($hostName in $hostsToTry) {
+        $client = $null
+        try {
+            $client = [System.Net.Sockets.TcpClient]::new()
+            $connectTask = $client.ConnectAsync($hostName, $Port)
+            if (-not $connectTask.Wait(1000)) {
+                continue
+            }
+            return $client.Connected
+        } catch {
+            continue
+        } finally {
+            if ($client) {
+                $client.Dispose()
+            }
+        }
+    }
+
+    return $false
+}
+
+function Test-FileWritable {
+    param([string]$Path)
+
+    if (-not $Path) {
+        return $false
+    }
+
+    $parentDir = Split-Path -Parent $Path
+    if (-not $parentDir) {
+        return $false
+    }
+
     try {
-        $result = Test-NetConnection -ComputerName $ServerHost -Port $Port -WarningAction SilentlyContinue
-        return [bool]$result.TcpTestSucceeded
+        New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
     } catch {
         return $false
     }
+
+    $created = -not (Test-Path -LiteralPath $Path)
+    try {
+        $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite)
+        $stream.Dispose()
+        if ($created) {
+            Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+        }
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Resolve-PostgresLogFile {
+    param(
+        [string]$ConfiguredLogFile,
+        [string]$DataDir
+    )
+
+    $fallbackLogFile = Join-Path $DataDir "pg_ctl-start.log"
+    if ($ConfiguredLogFile -and (Test-FileWritable -Path $ConfiguredLogFile)) {
+        return $ConfiguredLogFile
+    }
+
+    if ($ConfiguredLogFile) {
+        Write-Host "Configured PostgreSQL log file is not writable: $ConfiguredLogFile" -ForegroundColor Yellow
+        Write-Host "Falling back to $fallbackLogFile" -ForegroundColor Yellow
+    }
+
+    return $fallbackLogFile
 }
 
 function Get-PsqlPath {
@@ -48,7 +116,11 @@ function Ensure-LocalPostgres {
     param(
         [string]$ServerHost,
         [int]$Port,
-        [string]$PgRoot
+        [string]$PgRoot,
+        [string]$DataDir,
+        [string]$LogFile,
+        [int]$StartTimeout = 30,
+        [bool]$AutoStart = $true
     )
 
     if ($ServerHost -notin @("localhost", "127.0.0.1", "::1")) {
@@ -60,44 +132,61 @@ function Ensure-LocalPostgres {
         return $true
     }
 
-    $dataDir = Join-Path $PgRoot "data"
+    if (-not $AutoStart) {
+        Write-Host "Local PostgreSQL auto-start is disabled." -ForegroundColor Yellow
+        return $false
+    }
+
+    $dataDir = if ($DataDir) { $DataDir } else { Join-Path $PgRoot "data" }
     $pgCtl = Join-Path $PgRoot "bin\pg_ctl.exe"
     $pidFile = Join-Path $dataDir "postmaster.pid"
-    $logFile = Join-Path $dataDir "log\manual-start.log"
+    $logFile = Resolve-PostgresLogFile -ConfiguredLogFile $LogFile -DataDir $dataDir
 
     if (-not (Test-Path $pgCtl) -or -not (Test-Path $dataDir)) {
         Write-Host "Local PostgreSQL instance not found at $PgRoot." -ForegroundColor Yellow
         return $false
     }
 
+    $logDir = Split-Path -Parent $logFile
+    if ($logDir) {
+        New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+    }
+
     if (Test-Path $pidFile) {
-        $pid = $null
-        $firstLine = Get-Content $pidFile | Select-Object -First 1
+        $postgresPid = $null
+        $firstLine = Get-Content -LiteralPath $pidFile | Select-Object -First 1
         if ($firstLine -match '^\d+$') {
-            $pid = [int]$firstLine
+            $postgresPid = [int]$firstLine
         }
 
-        & $pgCtl status -D $dataDir *> $null
-        $hasRunningServer = $LASTEXITCODE -eq 0
         $processExists = $false
-        if ($pid) {
-            $processExists = [bool](Get-Process -Id $pid -ErrorAction SilentlyContinue)
+        if ($postgresPid -ne $null) {
+            $postgresProcess = Get-Process -Id $postgresPid -ErrorAction SilentlyContinue
+            $processExists = [bool]($postgresProcess -and $postgresProcess.ProcessName -ieq "postgres")
         }
 
-        if (-not $hasRunningServer -and -not $processExists) {
+        if (Test-TcpPort -ServerHost $ServerHost -Port $Port) {
+            Write-Host "PostgreSQL is already listening on $ServerHost`:$Port." -ForegroundColor Green
+            return $true
+        }
+
+        if (-not $processExists) {
             Write-Host "Removing stale PostgreSQL pid file..." -ForegroundColor Yellow
             Remove-Item -LiteralPath $pidFile -Force
         }
     }
 
     Write-Host "Starting local PostgreSQL instance on port $Port..." -ForegroundColor Cyan
-    & $pgCtl start -D $dataDir -l $logFile -w
-    if ($LASTEXITCODE -ne 0) {
+    $startOutput = & $pgCtl start -D $dataDir -l $logFile 2>&1
+    if ($LASTEXITCODE -ne 0 -and -not (Test-TcpPort -ServerHost $ServerHost -Port $Port)) {
         Write-Host "Failed to start local PostgreSQL instance." -ForegroundColor Red
+        if ($startOutput) {
+            Write-Host (($startOutput | Select-Object -Last 1).ToString()) -ForegroundColor Red
+        }
         return $false
     }
 
-    for ($attempt = 1; $attempt -le 10; $attempt++) {
+    for ($attempt = 1; $attempt -le $StartTimeout; $attempt++) {
         if (Test-TcpPort -ServerHost $ServerHost -Port $Port) {
             Write-Host "PostgreSQL started successfully on $ServerHost`:$Port." -ForegroundColor Green
             return $true
@@ -144,9 +233,13 @@ $DB_PORT = [int](Get-EnvValue -Content $envContent -Name "DB_PORT" -Default "543
 $DB_USER = Get-EnvValue -Content $envContent -Name "DB_USER" -Default "postgres"
 $DB_PASSWORD = Get-EnvValue -Content $envContent -Name "DB_PASSWORD" -Default "postgres"
 $DB_NAME = Get-EnvValue -Content $envContent -Name "DB_NAME" -Default "postgres"
-$PG_ROOT = Get-EnvValue -Content $envContent -Name "PG_ROOT" -Default "W:\DB\PostgreSQL"
+$PG_ROOT = Get-EnvValue -Content $envContent -Name "LOCAL_PG_INSTALL_DIR" -Default (Get-EnvValue -Content $envContent -Name "PG_ROOT" -Default "W:\DB\PostgreSQL")
+$LOCAL_PG_DATA_DIR = Get-EnvValue -Content $envContent -Name "LOCAL_PG_DATA_DIR" -Default (Join-Path $PG_ROOT "data")
+$LOCAL_PG_LOG_FILE = Get-EnvValue -Content $envContent -Name "LOCAL_PG_LOG_FILE" -Default (Join-Path $PG_ROOT "pg_ctl-start.log")
+$LOCAL_PG_START_TIMEOUT = [int](Get-EnvValue -Content $envContent -Name "LOCAL_PG_START_TIMEOUT" -Default "30")
+$LOCAL_PG_AUTO_START = (Get-EnvValue -Content $envContent -Name "LOCAL_PG_AUTO_START" -Default "1").Trim().ToLower() -notin @("0", "false", "no", "off")
 
-$dbReady = Ensure-LocalPostgres -ServerHost $DB_HOST -Port $DB_PORT -PgRoot $PG_ROOT
+$dbReady = Ensure-LocalPostgres -ServerHost $DB_HOST -Port $DB_PORT -PgRoot $PG_ROOT -DataDir $LOCAL_PG_DATA_DIR -LogFile $LOCAL_PG_LOG_FILE -StartTimeout $LOCAL_PG_START_TIMEOUT -AutoStart $LOCAL_PG_AUTO_START
 
 $sqlFile = Join-Path $scriptPath "db\requirements_db.sql"
 $sqlPatchFile = Join-Path $scriptPath "db\requirements_db_constraints_patch.sql"
@@ -179,6 +272,8 @@ if ($dbReady -and (Test-Path $sqlFile)) {
     } else {
         Write-Host "psql not found. Skipping schema initialization." -ForegroundColor Yellow
     }
+} elseif (-not $dbReady) {
+    Write-Host "Skipping schema initialization because PostgreSQL is not ready." -ForegroundColor Yellow
 }
 
 if (Test-Path $backendDir) {

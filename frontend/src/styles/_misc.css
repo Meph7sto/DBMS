@@ -442,7 +442,7 @@
 }
 
 .anim-slide {
-  animation: fadeUp 0.3s ease forwards;
+  animation: none;
 }
 
 

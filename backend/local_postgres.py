@@ -65,15 +65,12 @@ def ensure_local_postgres_ready(host: str, port: int) -> dict[str, Any] | None:
                 str(installation.data_dir),
                 "-l",
                 str(log_file),
-                "-w",
-                "-t",
-                str(_start_timeout_seconds()),
             ],
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=_start_timeout_seconds() + 5,
+            timeout=10,
             check=False,
         )
         if result.returncode != 0 and not _wait_for_ready(port, seconds=2.0):
@@ -221,8 +218,23 @@ def _start_timeout_seconds() -> int:
 def _get_log_file(installation: LocalPostgresInstallation) -> Path:
     value = os.getenv("LOCAL_PG_LOG_FILE")
     if value:
-        return Path(value).expanduser()
-    return installation.install_dir / "pg_ctl-start.log"
+        configured = Path(value).expanduser()
+        if _can_write_log_file(configured):
+            return configured
+    fallback = installation.data_dir / "pg_ctl-start.log"
+    if _can_write_log_file(fallback):
+        return fallback
+    return fallback
+
+
+def _can_write_log_file(path: Path) -> bool:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8"):
+            pass
+    except OSError:
+        return False
+    return True
 
 
 def _is_local_host(host: str) -> bool:

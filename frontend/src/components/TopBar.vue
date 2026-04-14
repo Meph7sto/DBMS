@@ -1,12 +1,7 @@
 <template>
   <nav class="nav">
     <div class="nav-brand">
-      <div class="logo-mark">DB</div>
       <span>{{ pageTitle }}</span>
-    </div>
-    <div class="nav-links">
-      <button v-if="connection" class="btn-white" style="color: var(--color-error); border-color: var(--color-error);" @click="$emit('disconnect')">断开连接</button>
-      <button class="btn-brand" @click="$emit('open-connect')">{{ connection ? '切换连接' : '连接数据库' }}</button>
     </div>
   </nav>
 </template>

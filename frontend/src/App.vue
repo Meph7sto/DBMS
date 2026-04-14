@@ -14,11 +14,6 @@
           @connected="onConnected"
           @close="showConnect = false"
         />
-        <TopBar
-          :connection="connection"
-          @open-connect="showConnect = true"
-          @disconnect="onDisconnect"
-        />
         <router-view
           :connection="connection"
           :schemas="schemas"
@@ -39,7 +34,6 @@ import {
   listSchemas,
   listTables,
 } from './api'
-import TopBar from './components/TopBar.vue'
 import Sidebar from './components/Sidebar.vue'
 import ConnectionModal from './components/ConnectionModal.vue'
 

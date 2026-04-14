@@ -1,6 +1,7 @@
 <template>
   <div class="page" style="display:flex;flex-direction:column;gap:20px;height:100%;overflow-y:auto;padding-right:8px;">
-    <div class="page-header" style="justify-content: flex-end;">
+    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+      <h1 style="margin: 0; font-size: 20px; color: var(--near-black);">产品管理</h1>
       <button class="btn-brand" @click="showForm = true">+ 新建产品</button>
     </div>
 
