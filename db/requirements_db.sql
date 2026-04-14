@@ -1,6 +1,6 @@
 -- ============================================================
 -- 需求管理数据库 (Requirements Management Database)
--- 基于 Semantic-Atlas Beta Interface 管理模块设计
+-- 基于管理模块设计
 -- 课程: 2026 Spring Database Systems Lab
 -- ============================================================
 

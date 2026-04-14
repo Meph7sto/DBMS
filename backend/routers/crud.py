@@ -772,6 +772,56 @@ def create_test_case(item: TestCaseCreate):
         raise handle_db_error(exc)
 
 
+@router.put("/test-cases/{test_case_id}")
+def update_test_case(test_case_id: str, item: TestCaseUpdate):
+    if item.status is not None and item.status not in VALID_TC_STATUS:
+        raise HTTPException(
+            status_code=400,
+            detail=err("invalid_status", value=item.status, allowed="draft/active/deprecated"),
+        )
+    sets, params = [], []
+    for field, value in [
+        ("title", item.title),
+        ("description", item.description),
+        ("status", item.status),
+    ]:
+        if value is not None:
+            sets.append(f"{field} = %s")
+            params.append(value)
+    if not sets:
+        raise HTTPException(status_code=400, detail="没有提供任何更新字段")
+    params.append(test_case_id)
+    try:
+        result = db.execute(
+            f"UPDATE manage_test_cases SET {', '.join(sets)} "
+            f"WHERE test_case_id = %s",
+            tuple(params),
+        )
+        if result["row_count"] == 0:
+            raise HTTPException(status_code=404, detail=err("test_case_not_found", id=test_case_id))
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise handle_db_error(exc)
+
+
+@router.delete("/test-cases/{test_case_id}")
+def delete_test_case(test_case_id: str):
+    try:
+        result = db.execute(
+            "DELETE FROM manage_test_cases WHERE test_case_id = %s",
+            (test_case_id,),
+        )
+        if result["row_count"] == 0:
+            raise HTTPException(status_code=404, detail=err("test_case_not_found", id=test_case_id))
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise handle_db_error(exc)
+
+
 # ─── 里程碑 CRUD ─────────────────────────────────────────────
 
 class MilestoneCreate(BaseModel):
@@ -784,6 +834,16 @@ class MilestoneCreate(BaseModel):
     sprint: Optional[str] = None
     version: Optional[str] = None
     created_by: Optional[str] = None
+
+
+class MilestoneUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    message: Optional[str] = None
+    milestone_type: Optional[str] = None
+    is_baseline: Optional[bool] = None
+    sprint: Optional[str] = None
+    version: Optional[str] = None
 
 
 VALID_MILESTONE_TYPES = {"regular", "baseline", "branch", "merge"}
@@ -841,5 +901,78 @@ def create_milestone(item: MilestoneCreate):
              item.sprint, item.version, item.created_by),
         )
         return {"ok": True, "id": ms_id}
+    except Exception as exc:
+        raise handle_db_error(exc)
+
+
+@router.put("/milestones/{milestone_id}")
+def update_milestone(milestone_id: str, item: MilestoneUpdate):
+    if item.milestone_type is not None and item.milestone_type not in VALID_MILESTONE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"错误：里程碑类型『{item.milestone_type}』不在允许的范围内"
+                "（regular/baseline/branch/merge）"
+            ),
+        )
+    sets, params = [], []
+    for field, value in [
+        ("name", item.name),
+        ("description", item.description),
+        ("message", item.message),
+        ("milestone_type", item.milestone_type),
+        ("is_baseline", item.is_baseline),
+        ("sprint", item.sprint),
+        ("version", item.version),
+    ]:
+        if value is not None:
+            sets.append(f"{field} = %s")
+            params.append(value)
+    if not sets:
+        raise HTTPException(status_code=400, detail="没有提供任何更新字段")
+    params.append(milestone_id)
+    try:
+        result = db.execute(
+            f"UPDATE manage_milestones SET {', '.join(sets)} "
+            f"WHERE milestone_id = %s",
+            tuple(params),
+        )
+        if result["row_count"] == 0:
+            raise HTTPException(status_code=404, detail=err("milestone_not_found", id=milestone_id))
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise handle_db_error(exc)
+
+
+@router.delete("/milestones/{milestone_id}")
+def delete_milestone(milestone_id: str):
+    try:
+        result = db.execute(
+            "DELETE FROM manage_milestones WHERE milestone_id = %s",
+            (milestone_id,),
+        )
+        if result["row_count"] == 0:
+            raise HTTPException(status_code=404, detail=err("milestone_not_found", id=milestone_id))
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise handle_db_error(exc)
+
+
+@router.delete("/defects/{defect_id}")
+def delete_defect(defect_id: str):
+    try:
+        result = db.execute(
+            "DELETE FROM manage_defects WHERE defect_id = %s",
+            (defect_id,),
+        )
+        if result["row_count"] == 0:
+            raise HTTPException(status_code=404, detail=err("defect_not_found", id=defect_id))
+        return {"ok": True}
+    except HTTPException:
+        raise
     except Exception as exc:
         raise handle_db_error(exc)

@@ -52,6 +52,14 @@
 
         <div v-if="expanded[schema]" class="nav-submenu">
           <router-link
+            v-if="schema === 'public'"
+            to="/performance-lab"
+            class="submenu-item rail-link perf-entry"
+          >
+            <span class="submenu-dot perf-dot"></span>
+            <span>性能验证</span>
+          </router-link>
+          <router-link
             v-for="t in tablesMap[schema] || []"
             :key="t.name"
             :to="`/table/${schema}/${t.name}`"
@@ -187,5 +195,15 @@ function toggleSchema(s) {
   background: var(--warm-sand);
   color: var(--near-black);
   box-shadow: 0px 0px 0px 1px var(--ring-deep);
+}
+
+.ref-app .perf-entry {
+  margin-bottom: 6px;
+  border-bottom: 1px dashed rgba(28, 40, 52, 0.08);
+}
+
+.ref-app .perf-dot {
+  background: var(--color-terracotta);
+  box-shadow: 0 0 0 2px rgba(201, 100, 66, 0.12);
 }
 </style>

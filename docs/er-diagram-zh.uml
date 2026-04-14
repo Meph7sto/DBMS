@@ -1,0 +1,295 @@
+@startuml
+hide circle
+left to right direction
+skinparam linetype ortho
+skinparam shadowing false
+skinparam defaultFontName "Microsoft YaHei"
+
+skinparam entity {
+  BackgroundColor #F8F9FA
+  BorderColor #495057
+  FontColor #212529
+}
+
+title Requirements Management ER Diagram
+
+entity "manage_products" as manage_products {
+  *product_id : TEXT <<PK>>
+  --
+  name : TEXT
+  description : TEXT
+  status : TEXT
+  roadmap : TEXT
+  version : TEXT
+  tags : JSONB
+  created_by : TEXT
+  created_at : TIMESTAMPTZ
+  updated_at : TIMESTAMPTZ
+}
+
+entity "manage_product_members" as manage_product_members {
+  *id : SERIAL <<PK>>
+  --
+  product_id : TEXT <<FK>>
+  user_id : TEXT
+  role : TEXT
+  created_at : TIMESTAMPTZ
+  updated_at : TIMESTAMPTZ
+}
+
+entity "manage_projects" as manage_projects {
+  *project_id : TEXT <<PK>>
+  --
+  name : TEXT
+  description : TEXT
+  status : TEXT
+  product_id : TEXT <<FK>>
+  current_session_id : TEXT
+  created_by : TEXT
+  created_at : TIMESTAMPTZ
+  updated_at : TIMESTAMPTZ
+}
+
+entity "manage_project_members" as manage_project_members {
+  *id : SERIAL <<PK>>
+  --
+  project_id : TEXT <<FK>>
+  user_id : TEXT
+  role : TEXT
+  created_at : TIMESTAMPTZ
+  updated_at : TIMESTAMPTZ
+}
+
+entity "manage_requirements" as manage_requirements {
+  *req_id : TEXT <<PK>>
+  --
+  project_id : TEXT <<FK>>
+  requirement_type : TEXT
+  status : TEXT
+  title : TEXT
+  description : TEXT
+  priority : TEXT
+  assignee : TEXT
+  tags : JSONB
+  due_date : TEXT
+  parent_id : TEXT <<FK>>
+  order_index : INTEGER
+  source_req_id : TEXT
+  source_level : TEXT
+  custom_fields : JSONB
+  is_planned : BOOLEAN
+  created_by : TEXT
+  created_at : TIMESTAMPTZ
+  updated_by : TEXT
+  updated_at : TIMESTAMPTZ
+  deleted : BOOLEAN
+}
+
+entity "manage_requirement_links" as manage_requirement_links {
+  *link_id : SERIAL <<PK>>
+  --
+  source_req_id : TEXT <<FK>>
+  target_req_id : TEXT <<FK>>
+  link_type : TEXT
+  created_by : TEXT
+  created_at : TIMESTAMPTZ
+}
+
+entity "manage_test_cases" as manage_test_cases {
+  *test_case_id : TEXT <<PK>>
+  --
+  project_id : TEXT <<FK>>
+  title : TEXT
+  description : TEXT
+  status : TEXT
+  source : TEXT
+  created_by : TEXT
+  created_at : TIMESTAMPTZ
+}
+
+entity "manage_requirement_test_links" as manage_requirement_test_links {
+  *link_id : SERIAL <<PK>>
+  --
+  requirement_id : TEXT <<FK>>
+  test_case_id : TEXT <<FK>>
+  link_type : TEXT
+  created_at : TIMESTAMPTZ
+}
+
+entity "manage_defects" as manage_defects {
+  *defect_id : TEXT <<PK>>
+  --
+  project_id : TEXT <<FK>>
+  requirement_id : TEXT <<FK>>
+  title : TEXT
+  reproduce_steps : TEXT
+  severity : TEXT
+  priority : TEXT
+  status : TEXT
+  reporter : TEXT
+  dev_assignee : TEXT
+  tester_assignee : TEXT
+  current_assignee : TEXT
+  created_by : TEXT
+  created_at : TIMESTAMPTZ
+  updated_by : TEXT
+  updated_at : TIMESTAMPTZ
+}
+
+entity "manage_milestones" as manage_milestones {
+  *milestone_id : TEXT <<PK>>
+  --
+  project_id : TEXT <<FK>>
+  name : TEXT
+  description : TEXT
+  message : TEXT
+  milestone_type : TEXT
+  is_baseline : BOOLEAN
+  sprint : TEXT
+  version : TEXT
+  tags : JSONB
+  metadata : JSONB
+  created_by : TEXT
+  created_at : TIMESTAMPTZ
+}
+
+entity "manage_milestone_nodes" as manage_milestone_nodes {
+  *snapshot_id : TEXT <<PK>>
+  --
+  milestone_id : TEXT <<FK>>
+  requirement_id : TEXT <<FK>>
+  requirement_type : TEXT
+  status : TEXT
+  title : TEXT
+  description : TEXT
+  parent_id : TEXT
+  order_index : INTEGER
+  snapshot_data : JSONB
+  created_at : TIMESTAMPTZ
+}
+
+entity "manage_branches" as manage_branches {
+  *branch_id : TEXT <<PK>>
+  --
+  project_id : TEXT <<FK>>
+  base_milestone_id : TEXT <<FK>>
+  name : TEXT
+  status : TEXT
+  metadata : JSONB
+  created_by : TEXT
+  created_at : TIMESTAMPTZ
+  updated_at : TIMESTAMPTZ
+}
+
+entity "manage_change_sets" as manage_change_sets {
+  *change_id : TEXT <<PK>>
+  --
+  branch_id : TEXT <<FK>>
+  change_type : TEXT
+  requirement_id : TEXT <<FK>>
+  before_data : JSONB
+  after_data : JSONB
+  created_by : TEXT
+  created_at : TIMESTAMPTZ
+}
+
+entity "manage_comments" as manage_comments {
+  *comment_id : TEXT <<PK>>
+  --
+  project_id : TEXT <<FK>>
+  target_type : TEXT
+  target_id : TEXT
+  content : TEXT
+  reply_to_id : TEXT <<FK>>
+  created_by : TEXT
+  created_at : TIMESTAMPTZ
+  updated_at : TIMESTAMPTZ
+  deleted : BOOLEAN
+}
+
+entity "manage_audit_logs" as manage_audit_logs {
+  *log_id : TEXT <<PK>>
+  --
+  project_id : TEXT <<FK>>
+  product_id : TEXT <<FK>>
+  actor : TEXT
+  action : TEXT
+  target_type : TEXT
+  target_id : TEXT
+  detail : JSONB
+  created_at : TIMESTAMPTZ
+}
+
+manage_products ||--o{ manage_product_members : product_id
+manage_products |o--o{ manage_projects : product_id
+
+manage_projects ||--o{ manage_project_members : project_id
+manage_projects ||--o{ manage_requirements : project_id
+manage_projects ||--o{ manage_test_cases : project_id
+manage_projects ||--o{ manage_defects : project_id
+manage_projects ||--o{ manage_milestones : project_id
+manage_projects ||--o{ manage_branches : project_id
+manage_projects ||--o{ manage_comments : project_id
+manage_projects |o--o{ manage_audit_logs : project_id
+
+manage_requirements ||--o{ manage_requirements : parent_id
+manage_requirements ||--o{ manage_requirement_links : source_req_id
+manage_requirements ||--o{ manage_requirement_links : target_req_id
+manage_requirements ||--o{ manage_requirement_test_links : requirement_id
+manage_test_cases ||--o{ manage_requirement_test_links : test_case_id
+manage_requirements |o--o{ manage_defects : "(project_id, requirement_id)"
+
+manage_milestones ||--o{ manage_milestone_nodes : milestone_id
+manage_requirements ||--o{ manage_milestone_nodes : requirement_id
+
+manage_milestones ||--o{ manage_branches : base_milestone_id
+manage_branches ||--o{ manage_change_sets : branch_id
+manage_requirements |o--o{ manage_change_sets : requirement_id
+
+manage_comments ||--o{ manage_comments : reply_to_id
+manage_products |o--o{ manage_audit_logs : product_id
+
+note right of manage_projects
+  current_session_id 存储为纯文本 (TEXT)。
+  当前 schema 没有定义 session 表。
+end note
+
+note bottom of manage_requirements
+  source_req_id/source_level 仅为描述性字段。
+  在当前 schema 中它们并没有强制作为外键约束。
+end note
+
+note right of manage_defects
+  复合外键：
+  (project_id, requirement_id)
+  -> manage_requirements(project_id, req_id)
+end note
+
+note right of manage_milestone_nodes
+  parent_id 是从需求树复制的快照数据。
+  在当前 schema 中它不是自引用的外键。
+end note
+
+note right of manage_comments
+  多态关联：
+  target_type + target_id
+  -> requirement / defect / test_case / milestone
+  由触发器保证有效性，而非标准的外键约束。
+end note
+
+note bottom of manage_requirement_links
+  需求对需求 (requirements-to-requirements) 的多对多 (M:N) 关系
+  通过该关联表扩展
+end note
+
+note bottom of manage_requirement_test_links
+  需求对测试用例 (requirements-to-test_cases) 的多对多 (M:N) 关系
+  通过该关联表扩展
+end note
+
+note bottom of manage_audit_logs
+  project_id 和 product_id 是可选的外键。
+  target_type + target_id 仍然是多态的。
+end note
+
+@enduml

@@ -12,6 +12,7 @@ from psycopg2 import errors as pg_errors
 from psycopg2 import extensions as pg_extensions
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
+from local_postgres import ensure_local_postgres_ready
 
 
 def _serialize_value(val):
@@ -75,6 +76,7 @@ class DatabaseManager:
         self, host: str, port: int, user: str, password: str, database: str
     ) -> Dict[str, Any]:
         """Establish a new connection pool, closing any existing one."""
+        bootstrap_info = ensure_local_postgres_ready(host, port)
         pool = None
         version = None
         with self._lock:
@@ -124,6 +126,8 @@ class DatabaseManager:
                 "database": database,
                 "pool_max_connections": self._pool_config["maxconn"],
             }
+            if bootstrap_info is not None:
+                self._info["local_postgres"] = bootstrap_info
             return {**self._info, "server_version": version}
 
     def disconnect(self):

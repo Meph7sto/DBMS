@@ -10,6 +10,7 @@ import ProductsView from './views/ProductsView.vue'
 import ProjectsView from './views/ProjectsView.vue'
 import RequirementsView from './views/RequirementsView.vue'
 import DefectsView from './views/DefectsView.vue'
+import PerformanceLab from './views/PerformanceLab.vue'
 
 const routes = [
   { path: '/', name: 'dashboard', component: Dashboard },
@@ -19,6 +20,7 @@ const routes = [
   { path: '/projects', name: 'projects', component: ProjectsView },
   { path: '/requirements', name: 'requirements', component: RequirementsView },
   { path: '/defects', name: 'defects', component: DefectsView },
+  { path: '/performance-lab', name: 'performance-lab', component: PerformanceLab },
 ]
 
 const router = createRouter({
