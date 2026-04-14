@@ -186,7 +186,7 @@
 |------|---------|------|------|
 | req_id | TEXT | PK | 需求唯一标识 |
 | project_id | TEXT | FK → projects, ON DELETE CASCADE | 所属项目 |
-| parent_id | TEXT | FK → requirements, ON DELETE SET NULL | 父需求ID（自引用） |
+| parent_id | TEXT | FK → requirements, ON DELETE SET NULL | 父需求ID（自引用，同项目约束由触发器保证） |
 | requirement_type | TEXT | NOT NULL, CHECK(in/..) | 类型：top_level/low_level/task |
 | status | TEXT | NOT NULL, CHECK(in/..) | 状态：draft/under_review/confirmed/in_progress/completed/archived |
 | title | TEXT | NOT NULL | 需求标题 |
@@ -206,7 +206,7 @@
 | updated_at | TIMESTAMPTZ | NOT NULL | 更新时间 |
 | deleted | BOOLEAN | NOT NULL, DEFAULT FALSE | 软删除标记 |
 
-**关系**：N:1 → manage_projects；自引用 1:N（parent_id → req_id）；1:N → manage_defects；M:N → manage_test_cases（通过 manage_requirement_test_links）
+**关系**：N:1 → manage_projects；自引用 1:N（parent_id → req_id，同项目且禁止成环）；1:N → manage_defects；M:N → manage_test_cases（通过 manage_requirement_test_links，同项目约束）
 
 ---
 
@@ -294,7 +294,7 @@
 |------|---------|------|------|
 | snapshot_id | TEXT | PK | 快照ID |
 | milestone_id | TEXT | FK → milestones, ON DELETE CASCADE | 所属里程碑 |
-| requirement_id | TEXT | NOT NULL | 需求ID |
+| requirement_id | TEXT | FK → requirements, ON DELETE CASCADE | 需求ID |
 | requirement_type | TEXT | — | 需求类型快照 |
 | status | TEXT | — | 状态快照 |
 | title | TEXT | — | 标题快照 |
@@ -333,7 +333,7 @@
 | change_id | TEXT | PK | 变更唯一标识 |
 | branch_id | TEXT | FK → branches, ON DELETE CASCADE | 所属分支 |
 | change_type | TEXT | NOT NULL, CHECK(in/..) | 变更类型：added/modified/deleted/moved |
-| requirement_id | TEXT | — | 关联需求ID |
+| requirement_id | TEXT | FK → requirements, ON DELETE SET NULL | 关联需求ID |
 | before_data | JSONB | — | 变更前数据 |
 | after_data | JSONB | — | 变更后数据 |
 | created_by | TEXT | — | 创建人 |
@@ -349,7 +349,7 @@
 |------|---------|------|------|
 | log_id | TEXT | PK | 日志唯一标识 |
 | project_id | TEXT | FK → projects, ON DELETE SET NULL | 关联项目 |
-| product_id | TEXT | — | 关联产品 |
+| product_id | TEXT | FK → products, ON DELETE SET NULL | 关联产品 |
 | actor | TEXT | NOT NULL | 操作用户 |
 | action | TEXT | NOT NULL | 操作类型 |
 | target_type | TEXT | — | 目标类型 |
@@ -402,6 +402,9 @@
 - manage_branches.project_id → manage_projects (CASCADE)
 - manage_branches.base_milestone_id → manage_milestones (RESTRICT)
 - manage_change_sets.branch_id → manage_branches (CASCADE)
+- manage_milestone_nodes.requirement_id → manage_requirements (CASCADE)
+- manage_change_sets.requirement_id → manage_requirements (SET NULL)
+- manage_audit_logs.product_id → manage_products (SET NULL)
 - manage_audit_logs.project_id → manage_projects (SET NULL)
 
 ### 5.3 非空约束（NOT NULL）
@@ -437,6 +440,11 @@
 - milestones.milestone_type IN ('regular', 'baseline', 'branch', 'merge')
 - branches.status IN ('active', 'under_review', 'merged', 'closed')
 - change_sets.change_type IN ('added', 'modified', 'deleted', 'moved')
+
+### 5.6 触发器约束（业务完整性）
+- 父需求、需求关联、需求-测试关联、分支-里程碑、里程碑快照、变更集、评论与审计日志均校验同项目范围
+- 需求层级规则：top_level 无父需求；low_level 的父需求必须为 top_level；task 的父需求必须为 top_level 或 low_level
+- 禁止需求父子循环引用，禁止评论跨项目回复，禁止审计日志中的项目和产品归属不一致
 
 ---
 

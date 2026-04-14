@@ -149,6 +149,7 @@ $PG_ROOT = Get-EnvValue -Content $envContent -Name "PG_ROOT" -Default "W:\DB\Pos
 $dbReady = Ensure-LocalPostgres -ServerHost $DB_HOST -Port $DB_PORT -PgRoot $PG_ROOT
 
 $sqlFile = Join-Path $scriptPath "db\requirements_db.sql"
+$sqlPatchFile = Join-Path $scriptPath "db\requirements_db_constraints_patch.sql"
 if ($dbReady -and (Test-Path $sqlFile)) {
     $psqlPath = Get-PsqlPath -PgRoot $PG_ROOT
     if ($psqlPath) {
@@ -163,6 +164,16 @@ if ($dbReady -and (Test-Path $sqlFile)) {
                 Write-Host "Database tables initialized successfully." -ForegroundColor Green
             } else {
                 Write-Host "Database initialization warning: $result" -ForegroundColor Yellow
+            }
+        }
+
+        if (Test-Path $sqlPatchFile) {
+            Write-Host "Applying schema constraints patch..." -ForegroundColor Cyan
+            $patchResult = & $psqlPath -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f $sqlPatchFile 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "Schema constraints patch applied successfully." -ForegroundColor Green
+            } else {
+                Write-Host "Schema constraints patch warning: $patchResult" -ForegroundColor Yellow
             }
         }
     } else {

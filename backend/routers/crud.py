@@ -28,6 +28,13 @@ ERROR_MESSAGES = {
     "invalid_severity": "错误：严重程度『{value}』不在允许的范围内（critical/high/medium/low）",
     "invalid_priority": "错误：优先级『{value}』不在允许的范围内（P0/P1/P2/P3）",
     "invalid_role": "错误：角色『{value}』不在允许的范围内（owner/admin/member/viewer）",
+    "top_level_parent_forbidden": "错误：top_level 类型需求不能设置父需求",
+    "missing_parent_for_type": "错误：{type} 类型需求必须指定父需求",
+    "self_parent": "错误：需求不能将自己设置为父需求",
+    "invalid_parent_type": "错误：{type} 类型需求的父需求类型必须为 {allowed}",
+    "cross_project_parent": "错误：父需求ID『{id}』与当前需求不属于同一项目",
+    "cross_project_requirement": "错误：需求ID『{id}』不属于项目『{project_id}』",
+    "circular_requirement": "错误：检测到循环父子关系，无法设置父需求",
     "fk_violation": "错误：外键引用无效（{detail}）",
     "unique_violation": "错误：违反唯一约束（{detail}）",
     "not_null_violation": "错误：字段『{column}』不能为空",
@@ -49,6 +56,84 @@ def handle_db_error(exc: Exception) -> HTTPException:
     if "not_null" in msg.lower():
         return HTTPException(status_code=400, detail=err("not_null_violation", detail=msg))
     return HTTPException(status_code=400, detail=err("internal_error", detail=msg))
+
+
+def get_requirement_record(req_id: str, *, include_deleted: bool = False):
+    sql = (
+        "SELECT req_id, project_id, requirement_type, parent_id, deleted "
+        "FROM manage_requirements WHERE req_id = %s"
+    )
+    params = [req_id]
+    if not include_deleted:
+        sql += " AND deleted = FALSE"
+    result = db.execute(sql, tuple(params))
+    return result["rows"][0] if result["rows"] else None
+
+
+def validate_requirement_parent(
+    project_id: str,
+    requirement_type: str,
+    parent_id: Optional[str],
+    *,
+    current_req_id: Optional[str] = None,
+):
+    if not parent_id:
+        if requirement_type != "top_level":
+            raise HTTPException(
+                status_code=400,
+                detail=err("missing_parent_for_type", type=requirement_type),
+            )
+        return
+
+    if requirement_type == "top_level":
+        raise HTTPException(status_code=400, detail=err("top_level_parent_forbidden"))
+
+    if current_req_id is not None and parent_id == current_req_id:
+        raise HTTPException(status_code=400, detail=err("self_parent"))
+
+    parent = get_requirement_record(parent_id)
+    if not parent:
+        raise HTTPException(status_code=400, detail=err("parent_req_not_found", id=parent_id))
+    if parent["project_id"] != project_id:
+        raise HTTPException(status_code=400, detail=err("cross_project_parent", id=parent_id))
+
+    allowed_parent_types = {
+        "low_level": {"top_level"},
+        "task": {"top_level", "low_level"},
+    }
+    allowed = allowed_parent_types.get(requirement_type, set())
+    if parent["requirement_type"] not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=err(
+                "invalid_parent_type",
+                type=requirement_type,
+                allowed="/".join(sorted(allowed)),
+            ),
+        )
+
+    if current_req_id is not None:
+        cycle = db.execute(
+            """
+            WITH RECURSIVE ancestors AS (
+                SELECT req_id, parent_id
+                FROM manage_requirements
+                WHERE req_id = %s
+                UNION ALL
+                SELECT r.req_id, r.parent_id
+                FROM manage_requirements r
+                JOIN ancestors a ON r.req_id = a.parent_id
+                WHERE a.parent_id IS NOT NULL
+            )
+            SELECT 1
+            FROM ancestors
+            WHERE req_id = %s
+            LIMIT 1
+            """,
+            (parent_id, current_req_id),
+        )
+        if cycle["rows"]:
+            raise HTTPException(status_code=400, detail=err("circular_requirement"))
 
 
 # ─── 通用响应模型 ────────────────────────────────────────────
@@ -356,6 +441,9 @@ def list_requirements(project_id: Optional[str] = None):
 
 @router.post("/requirements")
 def create_requirement(item: RequirementCreate):
+    parent_id = item.parent_id or None
+    priority = item.priority or None
+    assignee = item.assignee or None
     if not item.title or not item.title.strip():
         raise HTTPException(status_code=400, detail=err("empty_title"))
     if item.requirement_type not in VALID_REQ_TYPES:
@@ -369,10 +457,10 @@ def create_requirement(item: RequirementCreate):
             detail=err("invalid_status", value=item.status,
                        allowed="draft/under_review/confirmed/in_progress/completed/archived"),
         )
-    if item.priority and item.priority not in VALID_PRIORITIES:
+    if priority and priority not in VALID_PRIORITIES:
         raise HTTPException(
             status_code=400,
-            detail=err("invalid_priority", value=item.priority),
+            detail=err("invalid_priority", value=priority),
         )
     check = db.execute(
         "SELECT 1 FROM manage_projects WHERE project_id = %s",
@@ -380,13 +468,7 @@ def create_requirement(item: RequirementCreate):
     )
     if not check["rows"]:
         raise HTTPException(status_code=400, detail=err("project_not_found", id=item.project_id))
-    if item.parent_id:
-        check = db.execute(
-            "SELECT 1 FROM manage_requirements WHERE req_id = %s",
-            (item.parent_id,),
-        )
-        if not check["rows"]:
-            raise HTTPException(status_code=400, detail=err("parent_req_not_found", id=item.parent_id))
+    validate_requirement_parent(item.project_id, item.requirement_type, parent_id)
     req_id = f"req_{uuid.uuid4().hex[:8]}"
     try:
         db.execute(
@@ -395,8 +477,8 @@ def create_requirement(item: RequirementCreate):
                 priority, assignee, parent_id, order_index, created_by)
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (req_id, item.project_id, item.requirement_type, item.title.strip(),
-             item.description, item.status, item.priority, item.assignee,
-             item.parent_id, item.order_index, item.created_by),
+             item.description, item.status, priority, assignee,
+             parent_id, item.order_index, item.created_by),
         )
         return {"ok": True, "id": req_id}
     except Exception as exc:
@@ -405,32 +487,41 @@ def create_requirement(item: RequirementCreate):
 
 @router.put("/requirements/{req_id}")
 def update_requirement(req_id: str, item: RequirementUpdate):
+    current_requirement = get_requirement_record(req_id)
+    normalized_priority = (item.priority or None) if item.priority is not None else None
+    normalized_parent_id = (item.parent_id or None) if item.parent_id is not None else None
+    normalized_assignee = (item.assignee or None) if item.assignee is not None else None
+    if not current_requirement:
+        raise HTTPException(status_code=404, detail=err("requirement_not_found", id=req_id))
     if item.status is not None and item.status not in VALID_REQ_STATUS:
         raise HTTPException(
             status_code=400,
             detail=err("invalid_status", value=item.status,
                        allowed="draft/under_review/confirmed/in_progress/completed/archived"),
         )
-    if item.priority is not None and item.priority not in VALID_PRIORITIES:
+    if normalized_priority is not None and normalized_priority not in VALID_PRIORITIES:
         raise HTTPException(
             status_code=400,
             detail=err("invalid_priority", value=item.priority),
         )
     if item.parent_id is not None:
-        check = db.execute(
-            "SELECT 1 FROM manage_requirements WHERE req_id = %s",
-            (item.parent_id,),
+        validate_requirement_parent(
+            current_requirement["project_id"],
+            current_requirement["requirement_type"],
+            normalized_parent_id,
+            current_req_id=req_id,
         )
-        if not check["rows"]:
-            raise HTTPException(status_code=400, detail=err("parent_req_not_found", id=item.parent_id))
     sets, params = [], []
-    for field, value in [
-        ("title", item.title), ("description", item.description),
-        ("status", item.status), ("priority", item.priority),
-        ("assignee", item.assignee), ("parent_id", item.parent_id),
-        ("order_index", item.order_index),
+    for field, value, provided in [
+        ("title", item.title, item.title is not None),
+        ("description", item.description, item.description is not None),
+        ("status", item.status, item.status is not None),
+        ("priority", normalized_priority, item.priority is not None),
+        ("assignee", normalized_assignee, item.assignee is not None),
+        ("parent_id", normalized_parent_id, item.parent_id is not None),
+        ("order_index", item.order_index, item.order_index is not None),
     ]:
-        if value is not None:
+        if provided:
             sets.append(f"{field} = %s")
             params.append(value)
     if not sets:
@@ -544,12 +635,14 @@ def create_defect(item: DefectCreate):
     )
     if not check["rows"]:
         raise HTTPException(status_code=400, detail=err("project_not_found", id=item.project_id))
-    check = db.execute(
-        "SELECT 1 FROM manage_requirements WHERE req_id = %s",
-        (item.requirement_id,),
-    )
-    if not check["rows"]:
+    requirement = get_requirement_record(item.requirement_id)
+    if not requirement:
         raise HTTPException(status_code=400, detail=err("requirement_not_found", id=item.requirement_id))
+    if requirement["project_id"] != item.project_id:
+        raise HTTPException(
+            status_code=400,
+            detail=err("cross_project_requirement", id=item.requirement_id, project_id=item.project_id),
+        )
     defect_id = f"def_{uuid.uuid4().hex[:8]}"
     try:
         db.execute(
