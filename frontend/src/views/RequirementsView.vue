@@ -40,6 +40,7 @@
             <td style="padding:10px 12px;">{{ r.assignee || '—' }}</td>
             <td style="padding:10px 12px;">
               <button class="ghost" style="font-size:12px;padding:4px 8px;" @click="editReq(r)">编辑</button>
+              <button class="ghost" style="font-size:12px;padding:4px 8px;" @click="openRelations(r)">关联</button>
               <button class="ghost" style="font-size:12px;padding:4px 8px;color:var(--signal);" @click="handleDelete(r.req_id)">删除</button>
             </td>
           </tr>
@@ -57,6 +58,7 @@
           <span class="chip chip-neutral" style="font-size:11px;">{{ r.requirement_type }}</span>
           <span :class="['chip', statusColor(r.status)]" style="font-size:11px;">{{ r.status }}</span>
           <button class="ghost" style="font-size:11px;padding:2px 6px;" @click="editReq(r)">编辑</button>
+          <button class="ghost" style="font-size:11px;padding:2px 6px;" @click="openRelations(r)">关联</button>
           <button class="ghost" style="font-size:11px;padding:2px 6px;color:var(--signal);" @click="handleDelete(r.req_id)">✕</button>
         </div>
         <div v-if="expanded[r.req_id] && r.children">
@@ -67,6 +69,7 @@
               <span class="chip chip-neutral" style="font-size:11px;">{{ child.requirement_type }}</span>
               <span :class="['chip', statusColor(child.status)]" style="font-size:11px;">{{ child.status }}</span>
               <button class="ghost" style="font-size:11px;padding:2px 6px;" @click="editReq(child)">编辑</button>
+              <button class="ghost" style="font-size:11px;padding:2px 6px;" @click="openRelations(child)">关联</button>
             </div>
           </div>
         </div>
@@ -150,12 +153,19 @@
         </div>
       </div>
     </div>
+
+    <RequirementRelationsModal
+      v-if="activeRequirement"
+      :requirement="activeRequirement"
+      @close="activeRequirement = null"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { listRequirements, createRequirement, updateRequirement, deleteRequirement, listProjects } from '../api'
+import RequirementRelationsModal from '../components/RequirementRelationsModal.vue'
 
 const items = ref([])
 const projects = ref([])
@@ -168,6 +178,7 @@ const showForm = ref(false)
 const editingId = ref(null)
 const formError = ref('')
 const filterProject = ref('')
+const activeRequirement = ref(null)
 const form = reactive({ project_id: '', title: '', requirement_type: 'top_level', status: 'draft', priority: '', assignee: '', parent_id: '', description: '' })
 
 onMounted(async () => {
@@ -263,6 +274,10 @@ function statusColor(s) {
 function priorityColor(p) {
   const map = { low: 'chip-neutral', medium: 'chip-accent', high: 'chip-good' }
   return map[p] || 'chip-neutral'
+}
+
+function openRelations(requirement) {
+  activeRequirement.value = requirement
 }
 </script>
 

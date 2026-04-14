@@ -1,5 +1,4 @@
 import os
-import subprocess
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -63,12 +62,8 @@ class LocalPostgresTests(unittest.TestCase):
             port=5438,
         )
         log_file = installation.data_dir / "log" / "auto-start.log"
-        completed = subprocess.CompletedProcess(
-            args=["pg_ctl", "start"],
-            returncode=0,
-            stdout="server started",
-            stderr="",
-        )
+        process = mock.Mock()
+        process.poll.side_effect = [None, None]
 
         with mock.patch.dict(
             os.environ,
@@ -85,27 +80,33 @@ class LocalPostgresTests(unittest.TestCase):
                             "local_postgres._remove_stale_pid_file",
                             return_value=False,
                         ):
-                            with mock.patch("local_postgres._tcp_ready", return_value=False):
-                                with mock.patch(
-                                    "local_postgres._wait_for_ready",
-                                    return_value=True,
-                                ):
+                            with mock.patch(
+                                "local_postgres._tcp_ready",
+                                side_effect=[False, False, True],
+                            ):
+                                with mock.patch("local_postgres.time.sleep"):
                                     with mock.patch(
-                                        "local_postgres.subprocess.run",
-                                        return_value=completed,
-                                    ) as mocked_run:
-                                        info = local_postgres.ensure_local_postgres_ready(
-                                            "localhost",
-                                            5438,
-                                        )
+                                        "local_postgres._terminate_helper_process",
+                                    ) as mocked_terminate:
+                                        with mock.patch(
+                                            "local_postgres.subprocess.Popen",
+                                            return_value=process,
+                                        ) as mocked_popen:
+                                            info = local_postgres.ensure_local_postgres_ready(
+                                                "localhost",
+                                                5438,
+                                            )
 
         self.assertTrue(info["managed"])
         self.assertTrue(info["started"])
         self.assertFalse(info["recovered_stale_pid"])
         self.assertEqual(info["log_file"], str(log_file))
-        self.assertEqual(mocked_run.call_count, 1)
+        self.assertEqual(mocked_popen.call_count, 1)
+        args = mocked_popen.call_args.args[0]
+        self.assertEqual(args[-2:], ["-l", str(log_file)])
+        mocked_terminate.assert_called_once_with(process)
 
-    def test_get_log_file_falls_back_to_data_dir_when_configured_path_is_unwritable(self) -> None:
+    def test_get_log_file_falls_back_to_temp_dir_when_configured_path_is_unwritable(self) -> None:
         installation = local_postgres.LocalPostgresInstallation(
             install_dir=Path("W:/fake-postgres"),
             bin_dir=Path("W:/fake-postgres/bin"),
@@ -113,7 +114,7 @@ class LocalPostgresTests(unittest.TestCase):
             port=5438,
         )
         configured = Path("W:/fake-postgres/pg_ctl-start.log")
-        fallback = installation.data_dir / "pg_ctl-start.log"
+        fallback = Path("C:/Temp/dbms-visual-manager/postgres/pg_ctl-start-5438.log")
 
         with mock.patch.dict(
             os.environ,
@@ -121,10 +122,14 @@ class LocalPostgresTests(unittest.TestCase):
             clear=False,
         ):
             with mock.patch(
-                "local_postgres._can_write_log_file",
-                side_effect=lambda path: path == fallback,
+                "local_postgres._default_log_file",
+                return_value=fallback,
             ):
-                log_file = local_postgres._get_log_file(installation)
+                with mock.patch(
+                    "local_postgres._can_write_log_file",
+                    side_effect=lambda path: path == fallback,
+                ):
+                    log_file = local_postgres._get_log_file(installation)
 
         self.assertEqual(log_file, fallback)
 

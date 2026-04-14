@@ -25,6 +25,11 @@ const pageTitle = computed(() => {
     'projects': '项目管理',
     'requirements': '需求列表',
     'defects': '缺陷追踪',
+    'test-cases': '测试用例',
+    'milestones': '里程碑',
+    'branches': '分支管理',
+    'comments': '评论管理',
+    'audit-logs': '审计日志',
   }
   return nameMap[route.name] || 'DB Admin'
 })

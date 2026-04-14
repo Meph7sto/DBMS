@@ -51,16 +51,84 @@ export const listDefects = (projectId) =>
   api.get('/crud/defects', { params: projectId ? { project_id: projectId } : {} })
 export const createDefect = (data) => api.post('/crud/defects', data)
 export const updateDefect = (id, data) => api.put(`/crud/defects/${id}`, data)
+export const deleteDefect = (id) => api.delete(`/crud/defects/${id}`)
 
 /* ── CRUD: Test Cases ── */
 export const listTestCases = (projectId) =>
   api.get('/crud/test-cases', { params: projectId ? { project_id: projectId } : {} })
 export const createTestCase = (data) => api.post('/crud/test-cases', data)
+export const updateTestCase = (id, data) => api.put(`/crud/test-cases/${id}`, data)
+export const deleteTestCase = (id) => api.delete(`/crud/test-cases/${id}`)
 
 /* ── CRUD: Milestones ── */
 export const listMilestones = (projectId) =>
   api.get('/crud/milestones', { params: projectId ? { project_id: projectId } : {} })
 export const createMilestone = (data) => api.post('/crud/milestones', data)
+export const updateMilestone = (id, data) => api.put(`/crud/milestones/${id}`, data)
+export const deleteMilestone = (id) => api.delete(`/crud/milestones/${id}`)
+
+/* ── CRUD: Product Members ── */
+export const listProductMembers = (productId) =>
+  api.get('/crud/product-members', { params: productId ? { product_id: productId } : {} })
+export const createProductMember = (data) => api.post('/crud/product-members', data)
+export const updateProductMember = (id, data) => api.put(`/crud/product-members/${id}`, data)
+export const deleteProductMember = (id) => api.delete(`/crud/product-members/${id}`)
+
+/* ── CRUD: Project Members ── */
+export const listProjectMembers = (projectId) =>
+  api.get('/crud/project-members', { params: projectId ? { project_id: projectId } : {} })
+export const createProjectMember = (data) => api.post('/crud/project-members', data)
+export const updateProjectMember = (id, data) => api.put(`/crud/project-members/${id}`, data)
+export const deleteProjectMember = (id) => api.delete(`/crud/project-members/${id}`)
+
+/* ── CRUD: Requirement Links ── */
+export const listRequirementLinks = (projectId) =>
+  api.get('/crud/requirement-links', { params: projectId ? { project_id: projectId } : {} })
+export const createRequirementLink = (data) => api.post('/crud/requirement-links', data)
+export const updateRequirementLink = (id, data) => api.put(`/crud/requirement-links/${id}`, data)
+export const deleteRequirementLink = (id) => api.delete(`/crud/requirement-links/${id}`)
+
+/* ── CRUD: Requirement Test Links ── */
+export const listRequirementTestLinks = (projectId) =>
+  api.get('/crud/requirement-test-links', { params: projectId ? { project_id: projectId } : {} })
+export const createRequirementTestLink = (data) => api.post('/crud/requirement-test-links', data)
+export const updateRequirementTestLink = (id, data) => api.put(`/crud/requirement-test-links/${id}`, data)
+export const deleteRequirementTestLink = (id) => api.delete(`/crud/requirement-test-links/${id}`)
+
+/* ── CRUD: Milestone Nodes ── */
+export const listMilestoneNodes = (params = {}) =>
+  api.get('/crud/milestone-nodes', { params })
+export const createMilestoneNode = (data) => api.post('/crud/milestone-nodes', data)
+export const updateMilestoneNode = (id, data) => api.put(`/crud/milestone-nodes/${id}`, data)
+export const deleteMilestoneNode = (id) => api.delete(`/crud/milestone-nodes/${id}`)
+
+/* ── CRUD: Branches ── */
+export const listBranches = (projectId) =>
+  api.get('/crud/branches', { params: projectId ? { project_id: projectId } : {} })
+export const createBranch = (data) => api.post('/crud/branches', data)
+export const updateBranch = (id, data) => api.put(`/crud/branches/${id}`, data)
+export const deleteBranch = (id) => api.delete(`/crud/branches/${id}`)
+
+/* ── CRUD: Change Sets ── */
+export const listChangeSets = (params = {}) =>
+  api.get('/crud/change-sets', { params })
+export const createChangeSet = (data) => api.post('/crud/change-sets', data)
+export const updateChangeSet = (id, data) => api.put(`/crud/change-sets/${id}`, data)
+export const deleteChangeSet = (id) => api.delete(`/crud/change-sets/${id}`)
+
+/* ── CRUD: Comments ── */
+export const listComments = (projectId) =>
+  api.get('/crud/comments', { params: projectId ? { project_id: projectId } : {} })
+export const createComment = (data) => api.post('/crud/comments', data)
+export const updateComment = (id, data) => api.put(`/crud/comments/${id}`, data)
+export const deleteComment = (id) => api.delete(`/crud/comments/${id}`)
+
+/* ── CRUD: Audit Logs ── */
+export const listAuditLogs = (params = {}) =>
+  api.get('/crud/audit-logs', { params })
+export const createAuditLog = (data) => api.post('/crud/audit-logs', data)
+export const updateAuditLog = (id, data) => api.put(`/crud/audit-logs/${id}`, data)
+export const deleteAuditLog = (id) => api.delete(`/crud/audit-logs/${id}`)
 
 /* ── Statistics ── */
 export const listProjectStats = () => api.get('/stats/projects')

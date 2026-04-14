@@ -13,6 +13,7 @@ from psycopg2 import extensions as pg_extensions
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
 from local_postgres import ensure_local_postgres_ready
+from schema_bootstrap import ensure_requirements_schema
 
 
 def _serialize_value(val):
@@ -79,6 +80,7 @@ class DatabaseManager:
         bootstrap_info = ensure_local_postgres_ready(host, port)
         pool = None
         version = None
+        schema_info = None
         with self._lock:
             try:
                 pool = ThreadedConnectionPool(
@@ -104,6 +106,7 @@ class DatabaseManager:
                 with test_conn.cursor() as cur:
                     cur.execute("SELECT version()")
                     version = cur.fetchone()[0]
+                schema_info = ensure_requirements_schema(test_conn)
             except Exception:
                 if test_conn is not None:
                     try:
@@ -128,6 +131,8 @@ class DatabaseManager:
             }
             if bootstrap_info is not None:
                 self._info["local_postgres"] = bootstrap_info
+            if schema_info is not None:
+                self._info["schema"] = schema_info
             return {**self._info, "server_version": version}
 
     def disconnect(self):

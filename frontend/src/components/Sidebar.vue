@@ -36,6 +36,31 @@
         <span class="nav-label">缺陷管理</span>
       </router-link>
 
+      <router-link to="/test-cases" class="rail-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M7 8h10"/><path d="M7 12h10"/><path d="M7 16h6"/></svg>
+        <span class="nav-label">测试用例</span>
+      </router-link>
+
+      <router-link to="/milestones" class="rail-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 7h14l-2 3 2 3H5z"/></svg>
+        <span class="nav-label">里程碑</span>
+      </router-link>
+
+      <router-link to="/branches" class="rail-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M6 6a12 12 0 0 0 12 12"/></svg>
+        <span class="nav-label">分支管理</span>
+      </router-link>
+
+      <router-link to="/comments" class="rail-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span class="nav-label">评论管理</span>
+      </router-link>
+
+      <router-link to="/audit-logs" class="rail-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M12 3v4"/><rect x="4" y="7" width="16" height="14" rx="2"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
+        <span class="nav-label">审计日志</span>
+      </router-link>
+
       <router-link to="/query" class="rail-link">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
         <span class="nav-label">新建查询</span>

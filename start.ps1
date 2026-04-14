@@ -77,13 +77,21 @@ function Test-FileWritable {
     }
 }
 
+function Get-DefaultPostgresLogFile {
+    param([int]$Port)
+
+    $runtimeDir = Join-Path ([System.IO.Path]::GetTempPath()) "dbms-visual-manager\postgres"
+    return Join-Path $runtimeDir "pg_ctl-start-$Port.log"
+}
+
 function Resolve-PostgresLogFile {
     param(
         [string]$ConfiguredLogFile,
-        [string]$DataDir
+        [string]$DataDir,
+        [int]$Port
     )
 
-    $fallbackLogFile = Join-Path $DataDir "pg_ctl-start.log"
+    $fallbackLogFile = Get-DefaultPostgresLogFile -Port $Port
     if ($ConfiguredLogFile -and (Test-FileWritable -Path $ConfiguredLogFile)) {
         return $ConfiguredLogFile
     }
@@ -93,7 +101,94 @@ function Resolve-PostgresLogFile {
         Write-Host "Falling back to $fallbackLogFile" -ForegroundColor Yellow
     }
 
-    return $fallbackLogFile
+    if (Test-FileWritable -Path $fallbackLogFile) {
+        return $fallbackLogFile
+    }
+
+    $lastResortLogFile = Join-Path $DataDir "pg_ctl-start.log"
+    Write-Host "Temporary PostgreSQL log file is not writable: $fallbackLogFile" -ForegroundColor Yellow
+    Write-Host "Falling back to $lastResortLogFile" -ForegroundColor Yellow
+
+    if (Test-FileWritable -Path $lastResortLogFile) {
+        return $lastResortLogFile
+    }
+
+    return $lastResortLogFile
+}
+
+function Stop-HelperProcess {
+    param([System.Diagnostics.Process]$Process)
+
+    if (-not $Process) {
+        return
+    }
+
+    try {
+        if (-not $Process.HasExited) {
+            Stop-Process -Id $Process.Id -Force -ErrorAction Stop
+        }
+    } catch {
+        # Best effort only; helper cleanup failure should not block startup.
+    }
+}
+
+function Stop-OrphanPostgresProcesses {
+    param([string]$PgRoot)
+
+    $postgresExe = Join-Path $PgRoot "bin\postgres.exe"
+    $stopped = $false
+
+    foreach ($process in (Get-Process postgres -ErrorAction SilentlyContinue)) {
+        $matchesInstall = $false
+        try {
+            if (-not $process.Path -or $process.Path -ieq $postgresExe) {
+                $matchesInstall = $true
+            }
+        } catch {
+            $matchesInstall = $true
+        }
+
+        if (-not $matchesInstall) {
+            continue
+        }
+
+        try {
+            Stop-Process -Id $process.Id -Force -ErrorAction Stop
+            $stopped = $true
+        } catch {
+            continue
+        }
+    }
+
+    return $stopped
+}
+
+function Start-PostgresHelper {
+    param(
+        [string]$PgCtl,
+        [string]$DataDir,
+        [string]$LogFile
+    )
+
+    return Start-Process -FilePath $PgCtl -ArgumentList @("start", "-D", $DataDir, "-l", $LogFile) -PassThru -WindowStyle Hidden
+}
+
+function Get-ProcessExitCode {
+    param([System.Diagnostics.Process]$Process)
+
+    if (-not $Process) {
+        return $null
+    }
+
+    try {
+        if ($Process.HasExited) {
+            return $Process.ExitCode
+        }
+    } catch {
+        return $null
+    }
+
+    return $null
 }
 
 function Get-PsqlPath {
@@ -107,6 +202,37 @@ function Get-PsqlPath {
     $command = Get-Command psql -ErrorAction SilentlyContinue
     if ($command) {
         return $command.Source
+    }
+
+    return $null
+}
+
+function Get-PgIsReadyPath {
+    param([string]$PgRoot)
+
+    $localPgIsReady = Join-Path $PgRoot "bin\pg_isready.exe"
+    if (Test-Path $localPgIsReady) {
+        return $localPgIsReady
+    }
+
+    $command = Get-Command pg_isready -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+
+    return $null
+}
+
+function Get-PostgresLogSummary {
+    param([string]$LogFile)
+
+    if (-not (Test-Path -LiteralPath $LogFile)) {
+        return $null
+    }
+
+    $lines = Get-Content -LiteralPath $LogFile -Tail 20 | Where-Object { $_.Trim() }
+    if ($lines) {
+        return $lines[-1]
     }
 
     return $null
@@ -140,7 +266,7 @@ function Ensure-LocalPostgres {
     $dataDir = if ($DataDir) { $DataDir } else { Join-Path $PgRoot "data" }
     $pgCtl = Join-Path $PgRoot "bin\pg_ctl.exe"
     $pidFile = Join-Path $dataDir "postmaster.pid"
-    $logFile = Resolve-PostgresLogFile -ConfiguredLogFile $LogFile -DataDir $dataDir
+    $logFile = Resolve-PostgresLogFile -ConfiguredLogFile $LogFile -DataDir $dataDir -Port $Port
 
     if (-not (Test-Path $pgCtl) -or -not (Test-Path $dataDir)) {
         Write-Host "Local PostgreSQL instance not found at $PgRoot." -ForegroundColor Yellow
@@ -171,30 +297,74 @@ function Ensure-LocalPostgres {
         }
 
         if (-not $processExists) {
-            Write-Host "Removing stale PostgreSQL pid file..." -ForegroundColor Yellow
-            Remove-Item -LiteralPath $pidFile -Force
+            Write-Host "Cleaning up stale PostgreSQL state..." -ForegroundColor Yellow
+            if (Stop-OrphanPostgresProcesses -PgRoot $PgRoot) {
+                Start-Sleep -Seconds 1
+            }
+            try {
+                Remove-Item -LiteralPath $pidFile -Force -ErrorAction Stop
+            } catch {
+                Write-Host "Unable to remove stale PostgreSQL pid file. Continuing with startup attempt..." -ForegroundColor Yellow
+            }
         }
     }
 
     Write-Host "Starting local PostgreSQL instance on port $Port..." -ForegroundColor Cyan
-    $startOutput = & $pgCtl start -D $dataDir -l $logFile 2>&1
-    if ($LASTEXITCODE -ne 0 -and -not (Test-TcpPort -ServerHost $ServerHost -Port $Port)) {
-        Write-Host "Failed to start local PostgreSQL instance." -ForegroundColor Red
-        if ($startOutput) {
-            Write-Host (($startOutput | Select-Object -Last 1).ToString()) -ForegroundColor Red
-        }
+    $startProcess = $null
+    try {
+        $startProcess = Start-PostgresHelper -PgCtl $pgCtl -DataDir $dataDir -LogFile $logFile
+    } catch {
+        Write-Host "Failed to launch pg_ctl.exe." -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor Red
         return $false
     }
 
     for ($attempt = 1; $attempt -le $StartTimeout; $attempt++) {
         if (Test-TcpPort -ServerHost $ServerHost -Port $Port) {
+            Stop-HelperProcess -Process $startProcess
             Write-Host "PostgreSQL started successfully on $ServerHost`:$Port." -ForegroundColor Green
+            return $true
+        }
+
+        $exitCode = Get-ProcessExitCode -Process $startProcess
+        if ($exitCode -ne $null -and $exitCode -ne 0) {
+            Write-Host "Failed to start local PostgreSQL instance." -ForegroundColor Red
+            Write-Host "pg_ctl exit code: $exitCode" -ForegroundColor Red
+            $logSummary = Get-PostgresLogSummary -LogFile $logFile
+            if ($logSummary) {
+                Write-Host $logSummary -ForegroundColor Red
+            }
+            return $false
+        }
+
+        Start-Sleep -Seconds 1
+    }
+
+    Stop-HelperProcess -Process $startProcess
+    Write-Host "PostgreSQL process started, but port $Port did not become reachable." -ForegroundColor Red
+    return $false
+}
+
+function Wait-PostgresQueryReady {
+    param(
+        [string]$PgIsReadyPath,
+        [string]$ServerHost,
+        [int]$Port,
+        [int]$TimeoutSeconds = 30
+    )
+
+    if (-not $PgIsReadyPath) {
+        return $true
+    }
+
+    for ($attempt = 1; $attempt -le $TimeoutSeconds; $attempt++) {
+        & $PgIsReadyPath -h $ServerHost -p $Port 1>$null 2>$null
+        if ($LASTEXITCODE -eq 0) {
             return $true
         }
         Start-Sleep -Seconds 1
     }
 
-    Write-Host "PostgreSQL process started, but port $Port did not become reachable." -ForegroundColor Red
     return $false
 }
 
@@ -240,10 +410,22 @@ $LOCAL_PG_START_TIMEOUT = [int](Get-EnvValue -Content $envContent -Name "LOCAL_P
 $LOCAL_PG_AUTO_START = (Get-EnvValue -Content $envContent -Name "LOCAL_PG_AUTO_START" -Default "1").Trim().ToLower() -notin @("0", "false", "no", "off")
 
 $dbReady = Ensure-LocalPostgres -ServerHost $DB_HOST -Port $DB_PORT -PgRoot $PG_ROOT -DataDir $LOCAL_PG_DATA_DIR -LogFile $LOCAL_PG_LOG_FILE -StartTimeout $LOCAL_PG_START_TIMEOUT -AutoStart $LOCAL_PG_AUTO_START
+$dbQueryable = $dbReady
+
+if ($dbReady) {
+    $pgIsReadyPath = Get-PgIsReadyPath -PgRoot $PG_ROOT
+    if ($pgIsReadyPath) {
+        Write-Host "Waiting for PostgreSQL to accept queries..." -ForegroundColor Cyan
+        $dbQueryable = Wait-PostgresQueryReady -PgIsReadyPath $pgIsReadyPath -ServerHost $DB_HOST -Port $DB_PORT -TimeoutSeconds $LOCAL_PG_START_TIMEOUT
+        if (-not $dbQueryable) {
+            Write-Host "PostgreSQL opened port $DB_PORT but is still starting up." -ForegroundColor Yellow
+        }
+    }
+}
 
 $sqlFile = Join-Path $scriptPath "db\requirements_db.sql"
 $sqlPatchFile = Join-Path $scriptPath "db\requirements_db_constraints_patch.sql"
-if ($dbReady -and (Test-Path $sqlFile)) {
+if ($dbQueryable -and (Test-Path $sqlFile)) {
     $psqlPath = Get-PsqlPath -PgRoot $PG_ROOT
     if ($psqlPath) {
         Write-Host "Checking database schema..." -ForegroundColor Cyan
@@ -272,7 +454,7 @@ if ($dbReady -and (Test-Path $sqlFile)) {
     } else {
         Write-Host "psql not found. Skipping schema initialization." -ForegroundColor Yellow
     }
-} elseif (-not $dbReady) {
+} elseif (-not $dbQueryable) {
     Write-Host "Skipping schema initialization because PostgreSQL is not ready." -ForegroundColor Yellow
 }
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import socket
 import subprocess
+import tempfile
 import threading
 import time
 from dataclasses import dataclass
@@ -29,6 +30,10 @@ class LocalPostgresInstallation:
     @property
     def pg_ctl(self) -> Path:
         return self.bin_dir / "pg_ctl.exe"
+
+    @property
+    def pg_isready(self) -> Path:
+        return self.bin_dir / "pg_isready.exe"
 
 
 def ensure_local_postgres_ready(host: str, port: int) -> dict[str, Any] | None:
@@ -57,7 +62,8 @@ def ensure_local_postgres_ready(host: str, port: int) -> dict[str, Any] | None:
                 "log_file": str(log_file),
             }
 
-        result = subprocess.run(
+        timeout_seconds = _start_timeout_seconds()
+        process = subprocess.Popen(
             [
                 str(installation.pg_ctl),
                 "start",
@@ -66,24 +72,37 @@ def ensure_local_postgres_ready(host: str, port: int) -> dict[str, Any] | None:
                 "-l",
                 str(log_file),
             ],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=10,
-            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
-        if result.returncode != 0 and not _wait_for_ready(port, seconds=2.0):
-            summary = _summarize_process_result(result)
-            raise RuntimeError(
-                "本地 PostgreSQL 自动启动失败："
-                f"{summary}。请检查日志文件 {log_file}"
-            )
+        deadline = time.monotonic() + timeout_seconds
+        while time.monotonic() < deadline:
+            if _tcp_ready(port) and _query_ready(installation, host, port):
+                _terminate_helper_process(process)
+                return {
+                    "managed": True,
+                    "started": True,
+                    "recovered_stale_pid": recovered_stale_pid,
+                    "data_dir": str(installation.data_dir),
+                    "log_file": str(log_file),
+                }
 
-        if not _wait_for_ready(port, seconds=_start_timeout_seconds()):
+            returncode = process.poll()
+            if returncode not in {None, 0}:
+                raise RuntimeError(
+                    "本地 PostgreSQL 自动启动失败："
+                    f"pg_ctl 退出码 {returncode}。请检查日志文件 {log_file}"
+                )
+
+            time.sleep(0.5)
+
+        if not (_tcp_ready(port) and _query_ready(installation, host, port)):
+            _terminate_helper_process(process)
             raise RuntimeError(
                 f"本地 PostgreSQL 在端口 {port} 启动超时，请检查日志文件 {log_file}"
             )
+
+        _terminate_helper_process(process)
 
         return {
             "managed": True,
@@ -162,7 +181,10 @@ def _remove_stale_pid_file(installation: LocalPostgresInstallation, port: int) -
     if _tcp_ready(port):
         return False
 
-    pid_file.unlink(missing_ok=True)
+    try:
+        pid_file.unlink(missing_ok=True)
+    except OSError:
+        return False
     return True
 
 
@@ -221,10 +243,15 @@ def _get_log_file(installation: LocalPostgresInstallation) -> Path:
         configured = Path(value).expanduser()
         if _can_write_log_file(configured):
             return configured
-    fallback = installation.data_dir / "pg_ctl-start.log"
+    fallback = _default_log_file(installation)
     if _can_write_log_file(fallback):
         return fallback
-    return fallback
+    return installation.data_dir / "pg_ctl-start.log"
+
+
+def _default_log_file(installation: LocalPostgresInstallation) -> Path:
+    runtime_dir = Path(tempfile.gettempdir()) / "dbms-visual-manager" / "postgres"
+    return runtime_dir / f"pg_ctl-start-{installation.port}.log"
 
 
 def _can_write_log_file(path: Path) -> bool:
@@ -241,8 +268,30 @@ def _is_local_host(host: str) -> bool:
     return host.strip().lower() in LOCAL_HOSTS
 
 
-def _summarize_process_result(result: subprocess.CompletedProcess[str]) -> str:
-    for text in (result.stderr, result.stdout):
-        if text and text.strip():
-            return text.strip().splitlines()[-1]
-    return f"pg_ctl 退出码 {result.returncode}"
+def _terminate_helper_process(process: subprocess.Popen[Any]) -> None:
+    if process.poll() is None:
+        process.terminate()
+
+
+def _query_ready(
+    installation: LocalPostgresInstallation,
+    host: str,
+    port: int,
+) -> bool:
+    if not installation.pg_isready.exists():
+        return True
+
+    result = subprocess.run(
+        [
+            str(installation.pg_isready),
+            "-h",
+            host or "localhost",
+            "-p",
+            str(port),
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        timeout=2,
+        check=False,
+    )
+    return result.returncode == 0

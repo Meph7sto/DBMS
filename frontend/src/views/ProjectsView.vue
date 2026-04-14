@@ -26,6 +26,7 @@
             <td style="padding:10px 12px;color:rgba(28,40,52,0.6)">{{ formatTime(p.created_at) }}</td>
             <td style="padding:10px 12px;">
               <button class="ghost" style="font-size:12px;padding:4px 8px;" @click="editProject(p)">编辑</button>
+              <button class="ghost" style="font-size:12px;padding:4px 8px;" @click="openMembers(p)">成员</button>
               <button class="ghost" style="font-size:12px;padding:4px 8px;color:var(--signal);" @click="handleDelete(p.project_id)">删除</button>
             </td>
           </tr>
@@ -89,12 +90,21 @@
         </div>
       </div>
     </div>
+
+    <EntityMembersModal
+      v-if="activeProject"
+      mode="project"
+      :entity-id="activeProject.project_id"
+      :entity-name="activeProject.name"
+      @close="activeProject = null"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { listProjects, createProject, updateProject, deleteProject, listProducts, listProjectStats } from '../api'
+import EntityMembersModal from '../components/EntityMembersModal.vue'
 
 const items = ref([])
 const stats = ref([])
@@ -104,6 +114,7 @@ const error = ref('')
 const showForm = ref(false)
 const editingId = ref(null)
 const formError = ref('')
+const activeProject = ref(null)
 const form = reactive({ name: '', description: '', status: 'active', product_id: '' })
 
 onMounted(async () => {
@@ -180,6 +191,10 @@ async function handleDelete(id) {
 function formatTime(ts) {
   if (!ts) return '—'
   return new Date(ts).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+function openMembers(project) {
+  activeProject.value = project
 }
 </script>
 

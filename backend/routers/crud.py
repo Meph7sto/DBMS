@@ -55,6 +55,11 @@ def handle_db_error(exc: Exception) -> HTTPException:
         return HTTPException(status_code=400, detail=err("fk_violation", detail=msg))
     if "not_null" in msg.lower():
         return HTTPException(status_code=400, detail=err("not_null_violation", detail=msg))
+    if 'relation "' in msg.lower() and "does not exist" in msg.lower():
+        return HTTPException(
+            status_code=400,
+            detail="错误：当前数据库尚未完成需求管理 schema 初始化，请执行 db/requirements_db.sql 或通过 start.ps1 启动。",
+        )
     return HTTPException(status_code=400, detail=err("internal_error", detail=msg))
 
 
