@@ -19,7 +19,7 @@
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
           <tr style="border-bottom:1px solid rgba(28,40,52,0.1);">
-            <th class="th">标题</th>
+            <th class="th">测试用例信息</th>
             <th class="th">项目</th>
             <th class="th">状态</th>
             <th class="th">来源</th>
@@ -30,7 +30,17 @@
         </thead>
         <tbody>
           <tr v-for="item in items" :key="item.test_case_id" style="border-bottom:1px solid rgba(28,40,52,0.06);">
-            <td class="td strong">{{ item.title }}</td>
+            <td class="td" style="min-width:300px;">
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <div class="td strong" style="padding:0;">{{ item.title }}</div>
+                <div style="font-family:monospace;font-size:12px;color:rgba(28,40,52,0.55)">{{ item.test_case_id }}</div>
+                <div style="color:rgba(28,40,52,0.68);line-height:1.45;">{{ item.description || '—' }}</div>
+                <details style="margin-top:2px;">
+                  <summary style="cursor:pointer;font-size:12px;color:rgba(28,40,52,0.55);">完整字段</summary>
+                  <pre style="margin:8px 0 0;white-space:pre-wrap;word-break:break-all;font-size:11px;line-height:1.45;color:rgba(28,40,52,0.72);">{{ stringifyRecord(item) }}</pre>
+                </details>
+              </div>
+            </td>
             <td class="td">{{ item.project_name || item.project_id }}</td>
             <td class="td"><span :class="['chip', statusColor(item.status)]">{{ item.status }}</span></td>
             <td class="td">{{ item.source || '—' }}</td>
@@ -54,6 +64,10 @@
           <button class="ghost" @click="closeForm">✕</button>
         </div>
         <div class="modal-body">
+          <div v-if="editingId" class="form-group">
+            <label>测试用例 ID</label>
+            <input :value="editingId" type="text" readonly />
+          </div>
           <div class="form-group">
             <label>所属项目 *</label>
             <select v-model="form.project_id" :disabled="!!editingId">
@@ -221,6 +235,14 @@ function statusColor(status) {
     deprecated: 'chip-accent',
   }
   return map[status] || 'chip-neutral'
+}
+
+function stringifyRecord(record) {
+  try {
+    return JSON.stringify(record, null, 2)
+  } catch {
+    return '{}'
+  }
 }
 </script>
 

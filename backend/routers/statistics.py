@@ -70,6 +70,19 @@ def get_project_progress(project_id: str):
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+@router.get("/project/{project_id}/milestone-risk")
+def get_milestone_delivery_risk(project_id: str):
+    """Return milestone delivery risk analysis for a project (complex query 3)."""
+    try:
+        result = db.execute(
+            "SELECT * FROM fn_milestone_delivery_risk(%s)",
+            (project_id,),
+        )
+        return {"items": result["rows"], "total": result["row_count"]}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
 @router.get("/requirements/details")
 def list_requirement_details(project_id: str = None):
     """Return requirement details view, optionally filtered by project."""

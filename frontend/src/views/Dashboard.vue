@@ -7,8 +7,8 @@
 
         <div class="hero-actions" v-if="connection">
           <router-link to="/query" class="btn-brand">✦ 新建查询</router-link>
-          <button @click="handleImportBenchmark" class="btn-white" :disabled="isLoading">引入测试数据</button>
-          <button @click="handleDeleteBenchmark" class="btn-white" :disabled="isLoading" style="color: var(--error); border-color: var(--error);">删除测试数据</button>
+          <button @click="handleImportVisibleDemoData" class="btn-white" :disabled="isLoading">引入演示数据</button>
+          <button @click="handleDeleteVisibleDemoData" class="btn-white" :disabled="isLoading" style="color: var(--error); border-color: var(--error);">删除演示数据</button>
         </div>
       </div>
       <div class="hero-panel">
@@ -34,7 +34,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { importBenchmark, deleteBenchmark } from '../api'
+import { importVisibleDemoData, deleteVisibleDemoData } from '../api'
 
 const props = defineProps({
   connection: Object,
@@ -48,27 +48,27 @@ const totalTables = computed(() =>
 
 const isLoading = ref(false)
 
-const handleImportBenchmark = async () => {
-  if (!confirm("确定要引入基准测试数据吗？（原有基准数据将被清空重新生成，这可能需要几十秒的时间）")) return;
+const handleImportVisibleDemoData = async () => {
+  if (!confirm("确定要引入首页演示数据吗？这会清空并重建当前这套演示业务数据。")) return;
   try {
     isLoading.value = true;
-    await importBenchmark();
-    alert('测试数据引入成功！');
+    await importVisibleDemoData();
+    alert('演示数据引入成功！现在可以进入各业务页面查看完整数据。');
   } catch (e) {
-    alert('测试数据引入失败: ' + (e.response?.data?.detail || e.message));
+    alert('演示数据引入失败: ' + (e.response?.data?.detail || e.message));
   } finally {
     isLoading.value = false;
   }
 }
 
-const handleDeleteBenchmark = async () => {
-  if (!confirm("确定要删除所有基准测试数据吗？")) return;
+const handleDeleteVisibleDemoData = async () => {
+  if (!confirm("确定要删除首页演示数据吗？")) return;
   try {
     isLoading.value = true;
-    await deleteBenchmark();
-    alert('测试数据删除成功！');
+    await deleteVisibleDemoData();
+    alert('演示数据删除成功！');
   } catch (e) {
-    alert('测试数据删除失败: ' + (e.response?.data?.detail || e.message));
+    alert('演示数据删除失败: ' + (e.response?.data?.detail || e.message));
   } finally {
     isLoading.value = false;
   }

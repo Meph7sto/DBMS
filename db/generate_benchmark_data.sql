@@ -1,8 +1,24 @@
 -- ============================================================
 -- Benchmark Data Generator
--- 基于 requirements_db.sql 的现有表结构批量生成中等规模测试数据
+-- 基于 requirements_db.sql 的现有表结构批量生成万级测试数据
 -- 仅生成数据，不修改建表结构
 -- 可重复执行：会先清理此前生成的 b* / blog_* 基准数据
+-- ============================================================
+--
+-- 数据规模：
+--   Products: 10
+--   Product Members: 60 (10×6)
+--   Projects: 20 (2 per product)
+--   Requirements: 10,000 (500 per project)
+--   Test Cases: 500 (25 per project)
+--   Defects: 500 (25 per project)
+--   Milestones: 100 (5 per project)
+--   Branches: 200 (10 per project)
+--   Change Sets: 1000 (5 per branch)
+--   Audit Logs: 2000 (100 per project)
+--   Requirement-Test Links: ~500
+--   Requirement Links: ~1000
+--   Project Members: ~120
 -- ============================================================
 
 BEGIN;
@@ -29,6 +45,10 @@ WHERE milestone_id LIKE 'bms_%';
 DELETE FROM manage_defects
 WHERE defect_id LIKE 'bdef_%';
 
+DELETE FROM manage_requirement_links
+WHERE source_req_id LIKE 'breq_%'
+   OR target_req_id LIKE 'breq_%';
+
 DELETE FROM manage_requirement_test_links
 WHERE requirement_id LIKE 'breq_%'
    OR test_case_id LIKE 'btc_%';
@@ -49,8 +69,11 @@ WHERE product_id LIKE 'bprod_%'
 DELETE FROM manage_products
 WHERE product_id LIKE 'bprod_%';
 
+DELETE FROM manage_project_members
+WHERE project_id LIKE 'bproj_%';
+
 -- ============================================================
--- 1. Products: 5
+-- 1. Products: 10
 -- ============================================================
 
 INSERT INTO manage_products (
@@ -83,7 +106,11 @@ SELECT
     'bench_seed' AS created_by,
     NOW() - make_interval(days => 240 - gs * 12) AS created_at,
     NOW() - make_interval(days => 80 - gs * 4) AS updated_at
-FROM generate_series(1, 5) AS gs;
+FROM generate_series(1, 10) AS gs;
+
+-- ============================================================
+-- 1b. Project Members for Products: 60 (10 products × 6 members)
+-- ============================================================
 
 INSERT INTO manage_product_members (
     product_id,
@@ -105,12 +132,11 @@ SELECT
     END AS role,
     NOW() - make_interval(days => 150 - p.gs * 5 - m.gs) AS created_at,
     NOW() - make_interval(days => 60 - p.gs * 2 - m.gs) AS updated_at
-FROM generate_series(1, 5) AS p(gs)
+FROM generate_series(1, 10) AS p(gs)
 CROSS JOIN generate_series(1, 6) AS m(gs);
 
 -- ============================================================
--- 2. Projects: 5
--- 每个产品 1 个项目
+-- 2. Projects: 20 (2 per product)
 -- ============================================================
 
 INSERT INTO manage_projects (
@@ -134,27 +160,51 @@ SELECT
     END AS status,
     'bprod_' || lpad(gs::text, 3, '0') AS product_id,
     'bench-session-' || lpad(gs::text, 3, '0') AS current_session_id,
-    'bench_user_' || lpad((((gs - 1) % 30) + 1)::text, 3, '0') AS created_by,
+    'bench_user_' || lpad((((gs - 1) % 60) + 1)::text, 3, '0') AS created_by,
     NOW() - make_interval(days => 210 - gs * 3) AS created_at,
     NOW() - make_interval(days => 45 - (gs % 15)) AS updated_at
-FROM generate_series(1, 5) AS gs;
+FROM generate_series(1, 20) AS gs;
 
 -- ============================================================
--- 3. Requirements: 500
--- 每项目 100 条:
---   top_level = 10
---   low_level = 30
---   task = 60
--- 比例精确为 1 : 3 : 6
--- 任务中 60 条全部挂 low_level
+-- 2b. Project Members for Projects: ~120
+-- ============================================================
+
+INSERT INTO manage_project_members (
+    project_id,
+    user_id,
+    role,
+    created_at
+)
+SELECT
+    'bproj_' || lpad(p.gs::text, 3, '0') AS project_id,
+    'bench_user_' || lpad((((p.gs - 1) * 6 + m.gs) % 60 + 1)::text, 3, '0') AS user_id,
+    CASE m.gs
+        WHEN 1 THEN 'owner'
+        WHEN 2 THEN 'admin'
+        WHEN 3 THEN 'member'
+        WHEN 4 THEN 'member'
+        WHEN 5 THEN 'viewer'
+        ELSE 'viewer'
+    END AS role,
+    NOW() - make_interval(days => 180 - p.gs * 2 - m.gs * 3) AS created_at
+FROM generate_series(1, 20) AS p(gs)
+CROSS JOIN generate_series(1, 6) AS m(gs);
+
+-- ============================================================
+-- 3. Requirements: 10,000
+-- 每项目 500 条:
+--   top_level = 50
+--   low_level = 150
+--   task = 300
+-- 比例约 1 : 3 : 6
 -- ============================================================
 
 WITH req_seed AS (
     SELECT
         gs AS req_num,
-        ((gs - 1) / 100) + 1 AS project_num,
-        ((gs - 1) % 100) + 1 AS local_num
-    FROM generate_series(1, 500) AS gs
+        ((gs - 1) / 500) + 1 AS project_num,
+        ((gs - 1) % 500) + 1 AS local_num
+    FROM generate_series(1, 10000) AS gs
 )
 INSERT INTO manage_requirements (
     req_id,
@@ -183,8 +233,8 @@ SELECT
     'breq_' || lpad(req_num::text, 5, '0') AS req_id,
     'bproj_' || lpad(project_num::text, 3, '0') AS project_id,
     CASE
-        WHEN local_num <= 10 THEN 'top_level'
-        WHEN local_num <= 40 THEN 'low_level'
+        WHEN local_num <= 50 THEN 'top_level'
+        WHEN local_num <= 200 THEN 'low_level'
         ELSE 'task'
     END AS requirement_type,
     CASE
@@ -196,15 +246,14 @@ SELECT
         ELSE 'draft'
     END AS status,
     CASE
-        WHEN local_num <= 10 THEN 'Top Requirement P' || project_num || '-' || lpad(local_num::text, 3, '0')
-        WHEN local_num <= 40 THEN 'Low Requirement P' || project_num || '-' || lpad((local_num - 10)::text, 3, '0')
-        ELSE 'Task P' || project_num || '-' || lpad((local_num - 40)::text, 3, '0')
+        WHEN local_num <= 50 THEN 'Top Requirement P' || project_num || '-' || lpad(local_num::text, 4, '0')
+        WHEN local_num <= 200 THEN 'Low Requirement P' || project_num || '-' || lpad((local_num - 50)::text, 4, '0')
+        ELSE 'Task P' || project_num || '-' || lpad((local_num - 200)::text, 4, '0')
     END AS title,
     CASE
-        WHEN local_num <= 10 THEN '项目 ' || project_num || ' 的顶层业务目标需求。'
-        WHEN local_num <= 40 THEN '项目 ' || project_num || ' 的细化功能需求，挂载在对应顶层需求下。'
-        WHEN local_num <= 100 THEN '项目 ' || project_num || ' 的执行任务，挂载在低层需求下。'
-        ELSE '项目 ' || project_num || ' 的执行任务，直接挂载在顶层需求下。'
+        WHEN local_num <= 50 THEN '项目 ' || project_num || ' 的顶层业务目标需求。'
+        WHEN local_num <= 200 THEN '项目 ' || project_num || ' 的细化功能需求，挂载在对应顶层需求下。'
+        ELSE '项目 ' || project_num || ' 的执行任务，挂载在对应层级需求下。'
     END AS description,
     CASE
         WHEN req_num % 10 IN (0, 1) THEN 'high'
@@ -213,15 +262,15 @@ SELECT
     END AS priority,
     CASE
         WHEN req_num % 8 = 0 THEN NULL
-        ELSE 'bench_user_' || lpad((((project_num - 1) * 7 + req_num) % 48 + 1)::text, 3, '0')
+        ELSE 'bench_user_' || lpad((((project_num - 1) * 7 + req_num) % 60 + 1)::text, 3, '0')
     END AS assignee,
     jsonb_build_array(
         'benchmark',
-        'product-' || project_num,
+        'product-' || ((project_num - 1) / 2 + 1),
         'project-' || project_num,
         CASE
-            WHEN local_num <= 10 THEN 'top_level'
-            WHEN local_num <= 40 THEN 'low_level'
+            WHEN local_num <= 50 THEN 'top_level'
+            WHEN local_num <= 200 THEN 'low_level'
             ELSE 'task'
         END
     ) AS tags,
@@ -230,16 +279,16 @@ SELECT
         ELSE to_char(CURRENT_DATE + ((req_num % 120) - 30), 'YYYY-MM-DD')
     END AS due_date,
     CASE
-        WHEN local_num <= 10 THEN NULL
-        WHEN local_num <= 40 THEN
-            'breq_' || lpad((((project_num - 1) * 100) + (1 + ((local_num - 11) / 3)))::text, 5, '0')
+        WHEN local_num <= 50 THEN NULL
+        WHEN local_num <= 200 THEN
+            'breq_' || lpad((((project_num - 1) * 500) + (1 + ((local_num - 51) / 3)))::text, 5, '0')
         ELSE
-            'breq_' || lpad((((project_num - 1) * 100) + (11 + ((local_num - 41) % 30)))::text, 5, '0')
+            'breq_' || lpad((((project_num - 1) * 500) + (51 + ((local_num - 201) % 150 / 5))::text, 5, '0')
     END AS parent_id,
     CASE
-        WHEN local_num <= 10 THEN local_num - 1
-        WHEN local_num <= 40 THEN (local_num - 11) % 3
-        ELSE (local_num - 41) / 30
+        WHEN local_num <= 50 THEN local_num - 1
+        WHEN local_num <= 200 THEN (local_num - 51) % 3
+        ELSE (local_num - 201) / 5
     END AS order_index,
     NULL AS source_req_id,
     NULL AS source_level,
@@ -249,15 +298,15 @@ SELECT
         'local_num', local_num,
         'layer',
         CASE
-            WHEN local_num <= 10 THEN 'top_level'
-            WHEN local_num <= 40 THEN 'low_level'
+            WHEN local_num <= 50 THEN 'top_level'
+            WHEN local_num <= 200 THEN 'low_level'
             ELSE 'task'
         END
     ) AS custom_fields,
     CASE WHEN req_num % 5 <> 0 THEN TRUE ELSE FALSE END AS is_planned,
-    'bench_user_' || lpad(((req_num + 11) % 48 + 1)::text, 3, '0') AS created_by,
+    'bench_user_' || lpad(((req_num + 11) % 60 + 1)::text, 3, '0') AS created_by,
     NOW() - make_interval(days => 180 - (req_num % 150)) AS created_at,
-    'bench_user_' || lpad(((req_num + 23) % 48 + 1)::text, 3, '0') AS updated_by,
+    'bench_user_' || lpad(((req_num + 23) % 60 + 1)::text, 3, '0') AS updated_by,
     NOW() - make_interval(days => 20 - (req_num % 18)) AS updated_at,
     CASE
         WHEN req_num % 53 = 0 THEN TRUE
@@ -266,16 +315,15 @@ SELECT
 FROM req_seed;
 
 -- ============================================================
--- 4. Test Cases: 100
--- 每项目 20 条
+-- 4. Test Cases: 500 (25 per project)
 -- ============================================================
 
 WITH tc_seed AS (
     SELECT
         gs AS tc_num,
-        ((gs - 1) / 20) + 1 AS project_num,
-        ((gs - 1) % 20) + 1 AS local_num
-    FROM generate_series(1, 100) AS gs
+        ((gs - 1) / 25) + 1 AS project_num,
+        ((gs - 1) % 25) + 1 AS local_num
+    FROM generate_series(1, 500) AS gs
 )
 INSERT INTO manage_test_cases (
     test_case_id,
@@ -288,7 +336,7 @@ INSERT INTO manage_test_cases (
     created_at
 )
 SELECT
-    'btc_' || lpad(tc_num::text, 4, '0') AS test_case_id,
+    'btc_' || lpad(tc_num::text, 5, '0') AS test_case_id,
     'bproj_' || lpad(project_num::text, 3, '0') AS project_id,
     'Benchmark Test Case P' || project_num || '-' || lpad(local_num::text, 3, '0') AS title,
     '项目 ' || project_num || ' 的功能/回归测试用例 ' || local_num || '。' AS description,
@@ -297,8 +345,8 @@ SELECT
         WHEN tc_num % 4 = 0 THEN 'draft'
         ELSE 'active'
     END AS status,
-    'breq_' || lpad((((project_num - 1) * 100) + ((local_num * 7 - 1) % 100) + 1)::text, 5, '0') AS source,
-    'bench_user_' || lpad(((tc_num + 5) % 48 + 1)::text, 3, '0') AS created_by,
+    'breq_' || lpad((((project_num - 1) * 500) + ((local_num * 7 - 1) % 500) + 1)::text, 5, '0') AS source,
+    'bench_user_' || lpad(((tc_num + 5) % 60 + 1)::text, 3, '0') AS created_by,
     NOW() - make_interval(days => 120 - (tc_num % 90)) AS created_at
 FROM tc_seed;
 
@@ -309,8 +357,8 @@ INSERT INTO manage_requirement_test_links (
     created_at
 )
 SELECT
-    'breq_' || lpad((((project_num - 1) * 100) + ((local_num * 7 - 1) % 100) + 1)::text, 5, '0') AS requirement_id,
-    'btc_' || lpad(tc_num::text, 4, '0') AS test_case_id,
+    'breq_' || lpad((((project_num - 1) * 500) + ((local_num * 7 - 1) % 500) + 1)::text, 5, '0') AS requirement_id,
+    'btc_' || lpad(tc_num::text, 5, '0') AS test_case_id,
     CASE
         WHEN tc_num % 6 = 0 THEN 'regression'
         WHEN tc_num % 4 = 0 THEN 'coverage'
@@ -320,22 +368,21 @@ SELECT
 FROM (
     SELECT
         gs AS tc_num,
-        ((gs - 1) / 20) + 1 AS project_num,
-        ((gs - 1) % 20) + 1 AS local_num
-    FROM generate_series(1, 100) AS gs
+        ((gs - 1) / 25) + 1 AS project_num,
+        ((gs - 1) % 25) + 1 AS local_num
+    FROM generate_series(1, 500) AS gs
 ) AS link_seed;
 
 -- ============================================================
--- 5. Defects: 100
--- 每项目 20 条
+-- 5. Defects: 500 (25 per project)
 -- ============================================================
 
 WITH def_seed AS (
     SELECT
         gs AS defect_num,
-        ((gs - 1) / 20) + 1 AS project_num,
-        ((gs - 1) % 20) + 1 AS local_num
-    FROM generate_series(1, 100) AS gs
+        ((gs - 1) / 25) + 1 AS project_num,
+        ((gs - 1) % 25) + 1 AS local_num
+    FROM generate_series(1, 500) AS gs
 )
 INSERT INTO manage_defects (
     defect_id,
@@ -356,9 +403,9 @@ INSERT INTO manage_defects (
     updated_at
 )
 SELECT
-    'bdef_' || lpad(defect_num::text, 4, '0') AS defect_id,
+    'bdef_' || lpad(defect_num::text, 5, '0') AS defect_id,
     'bproj_' || lpad(project_num::text, 3, '0') AS project_id,
-    'breq_' || lpad((((project_num - 1) * 100) + ((local_num * 9 - 1) % 100) + 1)::text, 5, '0') AS requirement_id,
+    'breq_' || lpad((((project_num - 1) * 500) + ((local_num * 9 - 1) % 500) + 1)::text, 5, '0') AS requirement_id,
     'Benchmark Defect P' || project_num || '-' || lpad(local_num::text, 3, '0') AS title,
     '1. 打开项目 ' || project_num || E'\n'
     || '2. 执行场景 ' || local_num || E'\n'
@@ -383,22 +430,21 @@ SELECT
         WHEN defect_num % 3 = 0 THEN 'in_progress'
         ELSE 'open'
     END AS status,
-    'bench_user_' || lpad(((defect_num + 1) % 48 + 1)::text, 3, '0') AS reporter,
-    'bench_user_' || lpad(((defect_num + 7) % 48 + 1)::text, 3, '0') AS dev_assignee,
-    'bench_user_' || lpad(((defect_num + 13) % 48 + 1)::text, 3, '0') AS tester_assignee,
+    'bench_user_' || lpad(((defect_num + 1) % 60 + 1)::text, 3, '0') AS reporter,
+    'bench_user_' || lpad(((defect_num + 7) % 60 + 1)::text, 3, '0') AS dev_assignee,
+    'bench_user_' || lpad(((defect_num + 13) % 60 + 1)::text, 3, '0') AS tester_assignee,
     CASE
         WHEN defect_num % 17 = 0 OR defect_num % 13 = 0 THEN NULL
-        ELSE 'bench_user_' || lpad(((defect_num + 19) % 48 + 1)::text, 3, '0')
+        ELSE 'bench_user_' || lpad(((defect_num + 19) % 60 + 1)::text, 3, '0')
     END AS current_assignee,
-    'bench_user_' || lpad(((defect_num + 3) % 48 + 1)::text, 3, '0') AS created_by,
+    'bench_user_' || lpad(((defect_num + 3) % 60 + 1)::text, 3, '0') AS created_by,
     NOW() - make_interval(days => 110 - (defect_num % 85)) AS created_at,
-    'bench_user_' || lpad(((defect_num + 9) % 48 + 1)::text, 3, '0') AS updated_by,
+    'bench_user_' || lpad(((defect_num + 9) % 60 + 1)::text, 3, '0') AS updated_by,
     NOW() - make_interval(days => 18 - (defect_num % 14)) AS updated_at
 FROM def_seed;
 
 -- ============================================================
--- 6. Milestones: 25
--- 每项目 5 条
+-- 6. Milestones: 100 (5 per project)
 -- ============================================================
 
 WITH ms_seed AS (
@@ -406,7 +452,7 @@ WITH ms_seed AS (
         gs AS milestone_num,
         ((gs - 1) / 5) + 1 AS project_num,
         ((gs - 1) % 5) + 1 AS local_num
-    FROM generate_series(1, 25) AS gs
+    FROM generate_series(1, 100) AS gs
 )
 INSERT INTO manage_milestones (
     milestone_id,
@@ -424,7 +470,7 @@ INSERT INTO manage_milestones (
     created_at
 )
 SELECT
-    'bms_' || lpad(milestone_num::text, 3, '0') AS milestone_id,
+    'bms_' || lpad(milestone_num::text, 4, '0') AS milestone_id,
     'bproj_' || lpad(project_num::text, 3, '0') AS project_id,
     'Benchmark Milestone P' || project_num || '-' || local_num AS name,
     '项目 ' || project_num || ' 的阶段里程碑 ' || local_num || '。' AS description,
@@ -453,21 +499,20 @@ SELECT
         'project_num', project_num,
         'local_num', local_num
     ) AS metadata,
-    'bench_user_' || lpad(((milestone_num + 2) % 48 + 1)::text, 3, '0') AS created_by,
+    'bench_user_' || lpad(((milestone_num + 2) % 60 + 1)::text, 3, '0') AS created_by,
     NOW() - make_interval(days => 140 - (milestone_num % 100)) AS created_at
 FROM ms_seed;
 
 -- ============================================================
--- 7. Branches: 20
--- 每项目 4 条，base_milestone_id 指向同项目里程碑
+-- 7. Branches: 200 (10 per project)
 -- ============================================================
 
 WITH branch_seed AS (
     SELECT
         gs AS branch_num,
-        ((gs - 1) / 4) + 1 AS project_num,
-        ((gs - 1) % 4) + 1 AS local_num
-    FROM generate_series(1, 20) AS gs
+        ((gs - 1) / 10) + 1 AS project_num,
+        ((gs - 1) % 10) + 1 AS local_num
+    FROM generate_series(1, 200) AS gs
 )
 INSERT INTO manage_branches (
     branch_id,
@@ -481,9 +526,9 @@ INSERT INTO manage_branches (
     updated_at
 )
 SELECT
-    'bbranch_' || lpad(branch_num::text, 3, '0') AS branch_id,
+    'bbranch_' || lpad(branch_num::text, 4, '0') AS branch_id,
     'bproj_' || lpad(project_num::text, 3, '0') AS project_id,
-    'bms_' || lpad((((project_num - 1) * 5) + local_num)::text, 3, '0') AS base_milestone_id,
+    'bms_' || lpad((((project_num - 1) * 5) + ((local_num - 1) % 5 + 1))::text, 4, '0') AS base_milestone_id,
     CASE local_num
         WHEN 1 THEN 'feature/benchmark-core-' || project_num
         WHEN 2 THEN 'feature/benchmark-ui-' || project_num
@@ -501,21 +546,21 @@ SELECT
         'local_num', local_num,
         'source', 'benchmark'
     ) AS metadata,
-    'bench_user_' || lpad(((branch_num + 4) % 48 + 1)::text, 3, '0') AS created_by,
+    'bench_user_' || lpad(((branch_num + 4) % 60 + 1)::text, 3, '0') AS created_by,
     NOW() - make_interval(days => 95 - (branch_num % 70)) AS created_at,
     NOW() - make_interval(days => 12 - (branch_num % 10)) AS updated_at
 FROM branch_seed;
 
 -- ============================================================
--- 8. Change Sets: 100
+-- 8. Change Sets: 1000 (5 per branch, 200 branches)
 -- ============================================================
 
 WITH cs_seed AS (
     SELECT
         gs AS change_num,
-        ((gs - 1) % 20) + 1 AS branch_num,
-        (((gs - 1) % 20) / 4) + 1 AS project_num
-    FROM generate_series(1, 100) AS gs
+        ((gs - 1) / 5) + 1 AS branch_num,
+        (((((gs - 1) / 5) - 1) / 10) + 1) AS project_num
+    FROM generate_series(1, 1000) AS gs
 )
 INSERT INTO manage_change_sets (
     change_id,
@@ -528,15 +573,15 @@ INSERT INTO manage_change_sets (
     created_at
 )
 SELECT
-    'bcs_' || lpad(change_num::text, 4, '0') AS change_id,
-    'bbranch_' || lpad(branch_num::text, 3, '0') AS branch_id,
+    'bcs_' || lpad(change_num::text, 5, '0') AS change_id,
+    'bbranch_' || lpad(branch_num::text, 4, '0') AS branch_id,
     CASE
         WHEN change_num % 10 = 0 THEN 'deleted'
         WHEN change_num % 6 = 0 THEN 'moved'
         WHEN change_num % 2 = 0 THEN 'modified'
         ELSE 'added'
     END AS change_type,
-    'breq_' || lpad((((project_num - 1) * 100) + ((change_num * 17 - 1) % 100) + 1)::text, 5, '0') AS requirement_id,
+    'breq_' || lpad((((project_num - 1) * 500) + ((change_num * 17 - 1) % 500) + 1)::text, 5, '0') AS requirement_id,
     CASE
         WHEN change_num % 10 = 0 THEN
             jsonb_build_object('status', 'confirmed', 'order_index', change_num % 8)
@@ -557,21 +602,20 @@ SELECT
             'changed_by', 'bench_user_' || lpad(((change_num + 15) % 48 + 1)::text, 3, '0')
         )
     END AS after_data,
-    'bench_user_' || lpad(((change_num + 15) % 48 + 1)::text, 3, '0') AS created_by,
+    'bench_user_' || lpad(((change_num + 15) % 60 + 1)::text, 3, '0') AS created_by,
     NOW() - make_interval(days => 70 - (change_num % 50)) AS created_at
 FROM cs_seed;
 
 -- ============================================================
--- 9. Audit Logs: 200
--- 每条日志同时挂 project_id / product_id
+-- 9. Audit Logs: 2000 (100 per project)
 -- ============================================================
 
 WITH log_seed AS (
     SELECT
         gs AS log_num,
-        ((gs - 1) % 5) + 1 AS project_num,
-        ((gs - 1) % 5) + 1 AS product_num
-    FROM generate_series(1, 200) AS gs
+        ((gs - 1) / 100) + 1 AS project_num,
+        ((gs - 1) / 100) + 1 AS product_num
+    FROM generate_series(1, 2000) AS gs
 )
 INSERT INTO manage_audit_logs (
     log_id,
@@ -585,10 +629,10 @@ INSERT INTO manage_audit_logs (
     created_at
 )
 SELECT
-    'blog_' || lpad(log_num::text, 4, '0') AS log_id,
+    'blog_' || lpad(log_num::text, 5, '0') AS log_id,
     'bproj_' || lpad(project_num::text, 3, '0') AS project_id,
     'bprod_' || lpad(product_num::text, 3, '0') AS product_id,
-    'bench_user_' || lpad(((log_num + 21) % 48 + 1)::text, 3, '0') AS actor,
+    'bench_user_' || lpad(((log_num + 21) % 60 + 1)::text, 3, '0') AS actor,
     CASE (log_num % 7)
         WHEN 0 THEN '创建项目'
         WHEN 1 THEN '更新需求'
@@ -611,17 +655,17 @@ SELECT
         WHEN 0 THEN
             'bproj_' || lpad(project_num::text, 3, '0')
         WHEN 1 THEN
-            'breq_' || lpad((((project_num - 1) * 100) + ((log_num * 7 - 1) % 100) + 1)::text, 5, '0')
+            'breq_' || lpad((((project_num - 1) * 500) + ((log_num * 7 - 1) % 500) + 1)::text, 5, '0')
         WHEN 2 THEN
-            'btc_' || lpad((((project_num - 1) * 50) + ((log_num * 3 - 1) % 50) + 1)::text, 4, '0')
+            'btc_' || lpad((((project_num - 1) * 25) + ((log_num * 3 - 1) % 25) + 1)::text, 5, '0')
         WHEN 3 THEN
-            'bdef_' || lpad((((project_num - 1) * 75) + ((log_num * 5 - 1) % 75) + 1)::text, 4, '0')
+            'bdef_' || lpad((((project_num - 1) * 25) + ((log_num * 5 - 1) % 25) + 1)::text, 5, '0')
         WHEN 4 THEN
-            'bms_' || lpad((((project_num - 1) * 5) + ((log_num % 5) + 1))::text, 3, '0')
+            'bms_' || lpad((((project_num - 1) * 5) + ((log_num % 5) + 1))::text, 4, '0')
         WHEN 5 THEN
-            'bcs_' || lpad(((log_num - 1) % 100 + 1)::text, 4, '0')
+            'bcs_' || lpad(((log_num - 1) % 1000 + 1)::text, 5, '0')
         ELSE
-            'bbranch_' || lpad((((project_num - 1) * 4) + ((log_num % 4) + 1))::text, 3, '0')
+            'bbranch_' || lpad((((project_num - 1) * 10) + ((log_num % 10) + 1))::text, 4, '0')
     END AS target_id,
     jsonb_build_object(
         'source', 'benchmark',
@@ -631,6 +675,23 @@ SELECT
     ) AS detail,
     NOW() - make_interval(days => 130 - (log_num % 100)) AS created_at
 FROM log_seed;
+
+-- ============================================================
+-- 10. Requirement Links: ~1000
+-- Random links between requirements for tree structure testing
+-- ============================================================
+
+INSERT INTO manage_requirement_links (source_req_id, target_req_id, link_type, created_at)
+SELECT
+    'breq_' || lpad(((gs * 13 - 1) % 10000 + 1)::text, 5, '0') AS source_req_id,
+    'breq_' || lpad(((gs * 17 + 5) % 10000 + 1)::text, 5, '0') AS target_req_id,
+    CASE gs % 3
+        WHEN 0 THEN 'parent'
+        WHEN 1 THEN 'relates'
+        ELSE 'blocks'
+    END AS link_type,
+    NOW() - make_interval(days => 100 - (gs % 80)) AS created_at
+FROM generate_series(1, 1000) AS gs;
 
 COMMIT;
 
@@ -649,3 +710,4 @@ ANALYZE manage_milestones;
 ANALYZE manage_branches;
 ANALYZE manage_change_sets;
 ANALYZE manage_audit_logs;
+ANALYZE manage_requirement_links;

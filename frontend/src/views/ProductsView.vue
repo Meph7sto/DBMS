@@ -13,19 +13,52 @@
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
           <tr style="border-bottom:1px solid rgba(28,40,52,0.1);">
-            <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">产品名称</th>
+            <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">产品信息</th>
             <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">状态</th>
-            <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">版本</th>
-            <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">创建时间</th>
+            <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">版本与标签</th>
+            <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">路线图</th>
+            <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">创建与更新</th>
             <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="p in items" :key="p.product_id" style="border-bottom:1px solid rgba(28,40,52,0.06);">
-            <td style="padding:10px 12px;font-weight:600;color:var(--accent)">{{ p.name }}</td>
+            <td style="padding:10px 12px;min-width:260px;">
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <div style="font-weight:600;color:var(--accent)">{{ p.name }}</div>
+                <div style="font-family:monospace;font-size:12px;color:rgba(28,40,52,0.55)">{{ p.product_id }}</div>
+                <div style="color:rgba(28,40,52,0.68);line-height:1.45;">{{ p.description || '—' }}</div>
+                <details style="margin-top:2px;">
+                  <summary style="cursor:pointer;font-size:12px;color:rgba(28,40,52,0.55);">完整字段</summary>
+                  <pre style="margin:8px 0 0;white-space:pre-wrap;word-break:break-all;font-size:11px;line-height:1.45;color:rgba(28,40,52,0.72);">{{ stringifyRecord(p) }}</pre>
+                </details>
+              </div>
+            </td>
             <td style="padding:10px 12px;"><span :class="['chip', p.status === 'active' ? 'chip-good' : 'chip-neutral']">{{ p.status }}</span></td>
-            <td style="padding:10px 12px;font-family:monospace;">{{ p.version || '—' }}</td>
-            <td style="padding:10px 12px;color:rgba(28,40,52,0.6)">{{ formatTime(p.created_at) }}</td>
+            <td style="padding:10px 12px;min-width:180px;">
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <div style="font-family:monospace;">{{ p.version || '—' }}</div>
+                <div v-if="tagList(p.tags).length" style="display:flex;flex-wrap:wrap;gap:6px;">
+                  <span
+                    v-for="tag in tagList(p.tags)"
+                    :key="tag"
+                    class="chip chip-neutral"
+                    style="font-size:11px;"
+                  >
+                    {{ tag }}
+                  </span>
+                </div>
+                <div v-else style="color:rgba(28,40,52,0.45);">—</div>
+              </div>
+            </td>
+            <td style="padding:10px 12px;color:rgba(28,40,52,0.68);min-width:180px;">{{ p.roadmap || '—' }}</td>
+            <td style="padding:10px 12px;min-width:180px;">
+              <div style="display:flex;flex-direction:column;gap:6px;color:rgba(28,40,52,0.6);">
+                <div>创建人：<span style="font-family:monospace;">{{ p.created_by || '—' }}</span></div>
+                <div>创建：{{ formatTime(p.created_at) }}</div>
+                <div>更新：{{ formatTime(p.updated_at) }}</div>
+              </div>
+            </td>
             <td style="padding:10px 12px;">
               <button class="ghost" style="font-size:12px;padding:4px 8px;" @click="editProduct(p)">编辑</button>
               <button class="ghost" style="font-size:12px;padding:4px 8px;" @click="openMembers(p)">成员</button>
@@ -48,6 +81,10 @@
           <button class="ghost" @click="closeForm">✕</button>
         </div>
         <div class="modal-body">
+          <div v-if="editingId" class="form-group">
+            <label>产品 ID</label>
+            <input :value="editingId" type="text" readonly />
+          </div>
           <div class="form-group">
             <label>产品名称 *</label>
             <input v-model="form.name" type="text" placeholder="如：智能车载系统 V3.0" />
@@ -160,6 +197,27 @@ async function handleDelete(id) {
 function formatTime(ts) {
   if (!ts) return '—'
   return new Date(ts).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+function tagList(tags) {
+  if (Array.isArray(tags)) return tags
+  if (typeof tags === 'string') {
+    try {
+      const parsed = JSON.parse(tags)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+function stringifyRecord(record) {
+  try {
+    return JSON.stringify(record, null, 2)
+  } catch {
+    return '{}'
+  }
 }
 
 function openMembers(product) {

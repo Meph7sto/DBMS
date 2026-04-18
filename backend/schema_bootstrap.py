@@ -13,9 +13,53 @@ SCHEMA_SQL_FILE = DB_DIR / "requirements_db.sql"
 SCHEMA_PATCH_FILE = DB_DIR / "requirements_db_constraints_patch.sql"
 REQUIRED_TABLES = (
     "manage_products",
+    "manage_product_members",
     "manage_projects",
+    "manage_project_members",
+    "manage_requirements",
+    "manage_requirement_links",
+    "manage_test_cases",
+    "manage_requirement_test_links",
+    "manage_defects",
+    "manage_milestones",
+    "manage_milestone_nodes",
+    "manage_branches",
+    "manage_change_sets",
     "manage_comments",
+    "manage_audit_logs",
 )
+REQUIRED_RUNTIME_FUNCTIONS = {
+    "fn_milestone_delivery_risk": "public.fn_milestone_delivery_risk(text)",
+}
+PARTIAL_SCHEMA_REPAIR_SQL = dedent(
+    """
+    CREATE TABLE IF NOT EXISTS manage_project_members (
+        id         SERIAL PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES manage_projects(project_id) ON DELETE CASCADE,
+        user_id    TEXT NOT NULL,
+        role       TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member', 'viewer')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT uk_project_member UNIQUE (project_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS manage_requirement_links (
+        link_id        SERIAL PRIMARY KEY,
+        source_req_id  TEXT NOT NULL REFERENCES manage_requirements(req_id) ON DELETE CASCADE,
+        target_req_id  TEXT NOT NULL REFERENCES manage_requirements(req_id) ON DELETE CASCADE,
+        link_type      TEXT NOT NULL CHECK (link_type IN ('blocks', 'depends_on', 'relates_to', 'duplicates')),
+        created_by     TEXT,
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT uk_req_link UNIQUE (source_req_id, target_req_id, link_type),
+        CONSTRAINT chk_no_self_link CHECK (source_req_id != target_req_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_project_members_project ON manage_project_members(project_id);
+    CREATE INDEX IF NOT EXISTS idx_project_members_user ON manage_project_members(user_id);
+    CREATE INDEX IF NOT EXISTS idx_req_links_source ON manage_requirement_links(source_req_id);
+    CREATE INDEX IF NOT EXISTS idx_req_links_target ON manage_requirement_links(target_req_id);
+    """
+).strip()
 COMMENTS_REPAIR_SQL = dedent(
     """
     CREATE TABLE IF NOT EXISTS manage_comments (
@@ -120,12 +164,23 @@ def ensure_requirements_schema(conn) -> dict[str, Any]:
             _execute_sql_file(conn, SCHEMA_PATCH_FILE, "schema 约束补丁")
             patch_applied = True
             table_state = _required_table_state(conn)
-    elif _can_repair_comments_table(table_state):
-        _execute_sql_text(conn, COMMENTS_REPAIR_SQL)
-        _execute_sql_text(conn, COMMENTS_TRIGGER_PATCH_SQL)
-        schema_applied = True
-        patch_applied = True
-        table_state = _required_table_state(conn)
+    else:
+        repaired = False
+        if _can_repair_comments_table(table_state):
+            _execute_sql_text(conn, COMMENTS_REPAIR_SQL)
+            _execute_sql_text(conn, COMMENTS_TRIGGER_PATCH_SQL)
+            repaired = True
+            table_state = _required_table_state(conn)
+        if _can_repair_partial_schema(table_state):
+            _execute_sql_text(conn, PARTIAL_SCHEMA_REPAIR_SQL)
+            repaired = True
+            table_state = _required_table_state(conn)
+        if repaired:
+            schema_applied = True
+            if SCHEMA_PATCH_FILE.exists():
+                _execute_sql_file(conn, SCHEMA_PATCH_FILE, "schema 约束补丁")
+                patch_applied = True
+                table_state = _required_table_state(conn)
 
     if not all(table_state.values()):
         missing = ", ".join(name for name, exists in table_state.items() if not exists)
@@ -135,10 +190,30 @@ def ensure_requirements_schema(conn) -> dict[str, Any]:
             "或通过 start.ps1 启动完整环境。"
         )
 
+    function_state = _required_function_state(conn)
+    missing_functions = [
+        name for name, exists in function_state.items() if not exists
+    ]
+    if missing_functions and SCHEMA_PATCH_FILE.exists():
+        _execute_sql_file(conn, SCHEMA_PATCH_FILE, "schema 约束补丁")
+        patch_applied = True
+        function_state = _required_function_state(conn)
+        missing_functions = [
+            name for name, exists in function_state.items() if not exists
+        ]
+
+    if missing_functions:
+        missing = ", ".join(missing_functions)
+        raise RuntimeError(
+            "当前数据库缺少运行时必需函数："
+            f"{missing}。请执行 db/requirements_db.sql 或 db/requirements_db_constraints_patch.sql 更新。"
+        )
+
     return {
         "schema_applied": schema_applied,
         "patch_applied": patch_applied,
         "required_tables": list(REQUIRED_TABLES),
+        "required_functions": list(REQUIRED_RUNTIME_FUNCTIONS),
     }
 
 
@@ -149,6 +224,19 @@ def _required_table_state(conn) -> dict[str, bool]:
             cur.execute("SELECT to_regclass(%s) IS NOT NULL AS exists", (f"public.{table_name}",))
             row = cur.fetchone()
             state[table_name] = bool(row[0]) if row else False
+    return state
+
+
+def _required_function_state(conn) -> dict[str, bool]:
+    state: dict[str, bool] = {}
+    with conn.cursor() as cur:
+        for function_name, signature in REQUIRED_RUNTIME_FUNCTIONS.items():
+            cur.execute(
+                "SELECT to_regprocedure(%s) IS NOT NULL AS exists",
+                (signature,),
+            )
+            row = cur.fetchone()
+            state[function_name] = bool(row[0]) if row else False
     return state
 
 
@@ -170,4 +258,15 @@ def _can_repair_comments_table(table_state: dict[str, bool]) -> bool:
         table_state["manage_products"]
         and table_state["manage_projects"]
         and not table_state["manage_comments"]
+    )
+
+
+def _can_repair_partial_schema(table_state: dict[str, bool]) -> bool:
+    return (
+        table_state["manage_projects"]
+        and table_state["manage_requirements"]
+        and (
+            not table_state["manage_project_members"]
+            or not table_state["manage_requirement_links"]
+        )
     )

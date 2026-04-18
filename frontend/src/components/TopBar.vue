@@ -30,6 +30,7 @@ const pageTitle = computed(() => {
     'branches': '分支管理',
     'comments': '评论管理',
     'audit-logs': '审计日志',
+    'complex-queries': '复杂查询',
   }
   return nameMap[route.name] || 'DB Admin'
 })

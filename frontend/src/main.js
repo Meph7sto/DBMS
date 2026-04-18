@@ -16,6 +16,7 @@ import BranchesView from './views/BranchesView.vue'
 import CommentsView from './views/CommentsView.vue'
 import AuditLogsView from './views/AuditLogsView.vue'
 import PerformanceLab from './views/PerformanceLab.vue'
+import ComplexQueriesView from './views/ComplexQueriesView.vue'
 
 const routes = [
   { path: '/', name: 'dashboard', component: Dashboard },
@@ -30,6 +31,7 @@ const routes = [
   { path: '/branches', name: 'branches', component: BranchesView },
   { path: '/comments', name: 'comments', component: CommentsView },
   { path: '/audit-logs', name: 'audit-logs', component: AuditLogsView },
+  { path: '/complex-queries', name: 'complex-queries', component: ComplexQueriesView },
   { path: '/performance-lab', name: 'performance-lab', component: PerformanceLab },
 ]
 

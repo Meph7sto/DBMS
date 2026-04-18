@@ -17,7 +17,7 @@
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
           <tr style="border-bottom:1px solid rgba(28,40,52,0.1);">
-            <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">缺陷标题</th>
+            <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">缺陷信息</th>
             <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">关联需求</th>
             <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">严重程度</th>
             <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">优先级</th>
@@ -28,7 +28,17 @@
         </thead>
         <tbody>
           <tr v-for="d in items" :key="d.defect_id" style="border-bottom:1px solid rgba(28,40,52,0.06);">
-            <td style="padding:10px 12px;font-weight:600;color:var(--accent)">{{ d.title }}</td>
+            <td style="padding:10px 12px;min-width:300px;">
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <div style="font-weight:600;color:var(--accent)">{{ d.title }}</div>
+                <div style="font-family:monospace;font-size:12px;color:rgba(28,40,52,0.55)">{{ d.defect_id }}</div>
+                <div style="color:rgba(28,40,52,0.68);line-height:1.45;">{{ d.reproduce_steps || '—' }}</div>
+                <details style="margin-top:2px;">
+                  <summary style="cursor:pointer;font-size:12px;color:rgba(28,40,52,0.55);">完整字段</summary>
+                  <pre style="margin:8px 0 0;white-space:pre-wrap;word-break:break-all;font-size:11px;line-height:1.45;color:rgba(28,40,52,0.72);">{{ stringifyRecord(d) }}</pre>
+                </details>
+              </div>
+            </td>
             <td style="padding:10px 12px;color:rgba(28,40,52,0.6);font-size:12px;">{{ d.requirement_title || d.requirement_id }}</td>
             <td style="padding:10px 12px;"><span :class="['chip', severityColor(d.severity)]">{{ d.severity }}</span></td>
             <td style="padding:10px 12px;"><span class="chip chip-accent">{{ d.priority }}</span></td>
@@ -52,6 +62,10 @@
           <button class="ghost" @click="closeForm">✕</button>
         </div>
         <div class="modal-body">
+          <div v-if="editingId" class="form-group">
+            <label>缺陷 ID</label>
+            <input :value="editingId" type="text" readonly />
+          </div>
           <div class="form-group">
             <label>所属项目 *</label>
             <select v-model="form.project_id" :disabled="!!editingId">
@@ -213,6 +227,14 @@ function severityColor(s) {
 function statusColor(s) {
   const map = { open: 'chip-good', in_progress: 'chip-accent', resolved: 'chip-neutral', verified: 'chip-good', closed: 'chip-neutral', rejected: 'chip-neutral' }
   return map[s] || 'chip-neutral'
+}
+
+function stringifyRecord(record) {
+  try {
+    return JSON.stringify(record, null, 2)
+  } catch {
+    return '{}'
+  }
 }
 </script>
 

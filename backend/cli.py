@@ -405,6 +405,11 @@ def show_project_progress() -> None:
     run_action(statistics.get_project_progress, project_id)
 
 
+def show_milestone_delivery_risk() -> None:
+    project_id = prompt_text("项目 ID")
+    run_action(statistics.get_milestone_delivery_risk, project_id)
+
+
 def entity_menu(title: str, actions: list[tuple[str, Callable[[], None]]]) -> None:
     while True:
         print_header(title)
@@ -513,6 +518,7 @@ def main() -> None:
                     ("需求明细视图", show_requirement_details),
                     ("需求追溯复杂查询", show_requirement_trace),
                     ("项目进度复杂查询", show_project_progress),
+                    ("里程碑交付风险查询", show_milestone_delivery_risk),
                 ],
             )
         elif choice == "8":

@@ -113,13 +113,32 @@ onUnmounted(() => {
 }
 .editor-container {
   flex: 1;
-  overflow: auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 /* Use :deep() to correctly target elements created by CodeMirror */
 .editor-container :deep(.cm-editor) {
   height: 100%;
+  min-height: 0;
 }
 .editor-container :deep(.cm-scroller) {
   font-family: inherit;
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.editor-container :deep(.cm-gutters) {
+  min-height: 100%;
+}
+.editor-container :deep(.cm-scroller::-webkit-scrollbar) {
+  width: 8px;
+  height: 8px;
+}
+.editor-container :deep(.cm-scroller::-webkit-scrollbar-thumb) {
+  background: rgba(28, 40, 52, 0.2);
+}
+.editor-container :deep(.cm-scroller::-webkit-scrollbar-track) {
+  background: transparent;
 }
 </style>

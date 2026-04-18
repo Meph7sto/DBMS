@@ -444,3 +444,338 @@ BEFORE INSERT OR UPDATE OF project_id, product_id
 ON manage_audit_logs
 FOR EACH ROW
 EXECUTE FUNCTION fn_validate_audit_log_scope();
+
+CREATE OR REPLACE FUNCTION fn_requirement_trace(p_project_id TEXT)
+RETURNS TABLE (
+    req_id TEXT,
+    requirement_title TEXT,
+    requirement_type TEXT,
+    status TEXT,
+    priority TEXT,
+    assignee TEXT,
+    project_name TEXT,
+    test_cases JSONB,
+    defects JSONB,
+    test_case_count BIGINT,
+    total_defect_count BIGINT,
+    open_defect_count BIGINT
+)
+LANGUAGE plpgsql AS $$
+BEGIN
+    RETURN QUERY
+    WITH test_case_agg AS (
+        SELECT
+            rtl.requirement_id,
+            JSONB_AGG(
+                DISTINCT JSONB_BUILD_OBJECT(
+                    'test_case_id', tc.test_case_id,
+                    'title', tc.title,
+                    'status', tc.status,
+                    'link_type', rtl.link_type
+                )
+            ) FILTER (WHERE tc.test_case_id IS NOT NULL) AS test_cases,
+            COUNT(DISTINCT tc.test_case_id) AS test_case_count
+        FROM manage_requirement_test_links rtl
+        LEFT JOIN manage_test_cases tc ON tc.test_case_id = rtl.test_case_id
+        GROUP BY rtl.requirement_id
+    ),
+    defect_agg AS (
+        SELECT
+            df.requirement_id,
+            JSONB_AGG(
+                DISTINCT JSONB_BUILD_OBJECT(
+                    'defect_id', df.defect_id,
+                    'title', df.title,
+                    'severity', df.severity,
+                    'priority', df.priority,
+                    'status', df.status,
+                    'current_assignee', df.current_assignee
+                )
+            ) FILTER (WHERE df.defect_id IS NOT NULL) AS defects,
+            COUNT(DISTINCT df.defect_id) AS total_defect_count,
+            COUNT(DISTINCT CASE WHEN df.status IN ('open', 'in_progress') THEN df.defect_id END) AS open_defect_count
+        FROM manage_defects df
+        GROUP BY df.requirement_id
+    )
+    SELECT
+        req.req_id,
+        req.title AS requirement_title,
+        req.requirement_type,
+        req.status,
+        req.priority,
+        req.assignee,
+        proj.name AS project_name,
+        COALESCE(tca.test_cases, '[]'::JSONB) AS test_cases,
+        COALESCE(da.defects, '[]'::JSONB) AS defects,
+        COALESCE(tca.test_case_count, 0) AS test_case_count,
+        COALESCE(da.total_defect_count, 0) AS total_defect_count,
+        COALESCE(da.open_defect_count, 0) AS open_defect_count
+    FROM manage_requirements req
+    JOIN manage_projects proj ON proj.project_id = req.project_id
+    LEFT JOIN test_case_agg tca ON tca.requirement_id = req.req_id
+    LEFT JOIN defect_agg da ON da.requirement_id = req.req_id
+    WHERE req.deleted = FALSE AND req.project_id = p_project_id
+    ORDER BY req.created_at DESC;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION fn_project_progress(p_project_id TEXT)
+RETURNS TABLE (
+    project_id TEXT,
+    project_name TEXT,
+    project_status TEXT,
+    total_requirements BIGINT,
+    completed_requirements BIGINT,
+    in_progress_requirements BIGINT,
+    draft_requirements BIGINT,
+    completion_rate_percent NUMERIC,
+    total_defects BIGINT,
+    critical_defects BIGINT,
+    open_defects BIGINT,
+    total_requirements_for_coverage BIGINT,
+    covered_requirements BIGINT,
+    test_coverage_rate_percent NUMERIC,
+    total_milestones BIGINT,
+    baseline_count BIGINT
+)
+LANGUAGE plpgsql AS $$
+BEGIN
+    RETURN QUERY
+    WITH requirement_stats AS (
+        SELECT
+            mr.project_id,
+            COUNT(*) AS total_reqs,
+            COUNT(*) FILTER (WHERE mr.status = 'completed') AS completed_reqs,
+            COUNT(*) FILTER (WHERE mr.status = 'in_progress') AS in_progress_reqs,
+            COUNT(*) FILTER (WHERE mr.status = 'draft') AS draft_reqs
+        FROM manage_requirements mr
+        WHERE mr.deleted = FALSE
+        GROUP BY mr.project_id
+    ),
+    defect_stats AS (
+        SELECT
+            md.project_id,
+            COUNT(*) AS total_defects,
+            COUNT(*) FILTER (WHERE md.severity = 'critical') AS critical_defects,
+            COUNT(*) FILTER (WHERE md.status IN ('open', 'in_progress')) AS open_defects
+        FROM manage_defects md
+        GROUP BY md.project_id
+    ),
+    test_coverage_stats AS (
+        SELECT
+            r.project_id,
+            COUNT(DISTINCT r.req_id) AS total_requirements,
+            COUNT(DISTINCT r.req_id) FILTER (
+                WHERE EXISTS (
+                    SELECT 1 FROM manage_requirement_test_links rtl
+                    WHERE rtl.requirement_id = r.req_id
+                )
+            ) AS covered_requirements
+        FROM manage_requirements r
+        WHERE r.deleted = FALSE
+        GROUP BY r.project_id
+    ),
+    milestone_stats AS (
+        SELECT
+            mm.project_id,
+            COUNT(*) AS total_milestones,
+            COUNT(*) FILTER (WHERE mm.is_baseline = TRUE) AS baseline_count
+        FROM manage_milestones mm
+        GROUP BY mm.project_id
+    )
+    SELECT
+        p.project_id,
+        p.name AS project_name,
+        p.status AS project_status,
+        COALESCE(rs.total_reqs, 0)::BIGINT AS total_requirements,
+        COALESCE(rs.completed_reqs, 0)::BIGINT AS completed_requirements,
+        COALESCE(rs.in_progress_reqs, 0)::BIGINT AS in_progress_requirements,
+        COALESCE(rs.draft_reqs, 0)::BIGINT AS draft_requirements,
+        CASE
+            WHEN COALESCE(rs.total_reqs, 0) > 0
+            THEN ROUND(COALESCE(rs.completed_reqs, 0)::NUMERIC / rs.total_reqs * 100, 2)
+            ELSE 0
+        END AS completion_rate_percent,
+        COALESCE(ds.total_defects, 0)::BIGINT AS total_defects,
+        COALESCE(ds.critical_defects, 0)::BIGINT AS critical_defects,
+        COALESCE(ds.open_defects, 0)::BIGINT AS open_defects,
+        COALESCE(tcs.total_requirements, 0)::BIGINT AS total_requirements_for_coverage,
+        COALESCE(tcs.covered_requirements, 0)::BIGINT AS covered_requirements,
+        CASE
+            WHEN COALESCE(tcs.total_requirements, 0) > 0
+            THEN ROUND(COALESCE(tcs.covered_requirements, 0)::NUMERIC / tcs.total_requirements * 100, 2)
+            ELSE 0
+        END AS test_coverage_rate_percent,
+        COALESCE(ms.total_milestones, 0)::BIGINT AS total_milestones,
+        COALESCE(ms.baseline_count, 0)::BIGINT AS baseline_count
+    FROM manage_projects p
+    LEFT JOIN requirement_stats rs ON rs.project_id = p.project_id
+    LEFT JOIN defect_stats ds ON ds.project_id = p.project_id
+    LEFT JOIN test_coverage_stats tcs ON tcs.project_id = p.project_id
+    LEFT JOIN milestone_stats ms ON ms.project_id = p.project_id
+    WHERE p.project_id = p_project_id
+    ORDER BY p.created_at DESC;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION fn_milestone_delivery_risk(p_project_id TEXT)
+RETURNS TABLE (
+    milestone_id TEXT,
+    milestone_name TEXT,
+    milestone_type TEXT,
+    is_baseline BOOLEAN,
+    sprint TEXT,
+    version TEXT,
+    project_name TEXT,
+    scoped_requirement_count BIGINT,
+    incomplete_requirement_count BIGINT,
+    uncovered_requirement_count BIGINT,
+    blocked_requirement_count BIGINT,
+    unresolved_defect_count BIGINT,
+    critical_defect_count BIGINT,
+    active_branch_count BIGINT,
+    pending_change_count BIGINT,
+    latest_branch_activity TIMESTAMPTZ,
+    risk_score NUMERIC,
+    risk_level TEXT
+)
+LANGUAGE plpgsql AS $$
+BEGIN
+    RETURN QUERY
+    WITH milestone_requirement_stats AS (
+        SELECT
+            m.milestone_id,
+            COUNT(DISTINCT mn.requirement_id) AS scoped_requirement_count,
+            COUNT(DISTINCT mn.requirement_id) FILTER (
+                WHERE r.req_id IS NOT NULL
+                  AND r.deleted = FALSE
+                  AND r.status <> 'completed'
+            ) AS incomplete_requirement_count,
+            COUNT(DISTINCT mn.requirement_id) FILTER (
+                WHERE r.req_id IS NOT NULL
+                  AND r.deleted = FALSE
+                  AND NOT EXISTS (
+                      SELECT 1
+                        FROM manage_requirement_test_links rtl
+                        JOIN manage_test_cases tc
+                          ON tc.test_case_id = rtl.test_case_id
+                         AND tc.status = 'active'
+                       WHERE rtl.requirement_id = mn.requirement_id
+                  )
+            ) AS uncovered_requirement_count,
+            COUNT(DISTINCT mn.requirement_id) FILTER (
+                WHERE r.req_id IS NOT NULL
+                  AND r.deleted = FALSE
+                  AND EXISTS (
+                      SELECT 1
+                        FROM manage_requirement_links rl
+                        JOIN manage_requirements dep
+                          ON dep.req_id = rl.target_req_id
+                       WHERE rl.source_req_id = mn.requirement_id
+                         AND rl.link_type = 'depends_on'
+                         AND dep.deleted = FALSE
+                         AND dep.status <> 'completed'
+                  )
+            ) AS blocked_requirement_count
+        FROM manage_milestones m
+        LEFT JOIN manage_milestone_nodes mn ON mn.milestone_id = m.milestone_id
+        LEFT JOIN manage_requirements r ON r.req_id = mn.requirement_id
+        WHERE m.project_id = p_project_id
+        GROUP BY m.milestone_id
+    ),
+    milestone_defect_stats AS (
+        SELECT
+            m.milestone_id,
+            COUNT(DISTINCT d.defect_id) FILTER (
+                WHERE d.status NOT IN ('closed', 'rejected')
+            ) AS unresolved_defect_count,
+            COUNT(DISTINCT d.defect_id) FILTER (
+                WHERE d.severity = 'critical'
+                  AND d.status NOT IN ('closed', 'rejected')
+            ) AS critical_defect_count
+        FROM manage_milestones m
+        LEFT JOIN manage_milestone_nodes mn ON mn.milestone_id = m.milestone_id
+        LEFT JOIN manage_defects d
+               ON d.project_id = m.project_id
+              AND d.requirement_id = mn.requirement_id
+        WHERE m.project_id = p_project_id
+        GROUP BY m.milestone_id
+    ),
+    milestone_branch_stats AS (
+        SELECT
+            m.milestone_id,
+            COUNT(DISTINCT b.branch_id) FILTER (
+                WHERE b.status IN ('active', 'under_review')
+            ) AS active_branch_count,
+            COUNT(DISTINCT cs.change_id) FILTER (
+                WHERE b.status IN ('active', 'under_review')
+            ) AS pending_change_count,
+            MAX(COALESCE(cs.created_at, b.updated_at, b.created_at)) AS latest_branch_activity
+        FROM manage_milestones m
+        LEFT JOIN manage_branches b ON b.base_milestone_id = m.milestone_id
+        LEFT JOIN manage_change_sets cs ON cs.branch_id = b.branch_id
+        WHERE m.project_id = p_project_id
+        GROUP BY m.milestone_id
+    ),
+    risk_metrics AS (
+        SELECT
+            m.milestone_id,
+            COALESCE(mrs.scoped_requirement_count, 0)::BIGINT AS scoped_requirement_count,
+            COALESCE(mrs.incomplete_requirement_count, 0)::BIGINT AS incomplete_requirement_count,
+            COALESCE(mrs.uncovered_requirement_count, 0)::BIGINT AS uncovered_requirement_count,
+            COALESCE(mrs.blocked_requirement_count, 0)::BIGINT AS blocked_requirement_count,
+            COALESCE(mds.unresolved_defect_count, 0)::BIGINT AS unresolved_defect_count,
+            COALESCE(mds.critical_defect_count, 0)::BIGINT AS critical_defect_count,
+            COALESCE(mbs.active_branch_count, 0)::BIGINT AS active_branch_count,
+            COALESCE(mbs.pending_change_count, 0)::BIGINT AS pending_change_count,
+            mbs.latest_branch_activity,
+            ROUND(
+                (
+                    COALESCE(mrs.incomplete_requirement_count, 0) * 2.0 +
+                    COALESCE(mrs.uncovered_requirement_count, 0) * 1.5 +
+                    COALESCE(mrs.blocked_requirement_count, 0) * 2.5 +
+                    COALESCE(mds.unresolved_defect_count, 0) * 2.0 +
+                    COALESCE(mds.critical_defect_count, 0) * 3.0 +
+                    COALESCE(mbs.pending_change_count, 0) * 0.5
+                )::NUMERIC,
+                2
+            ) AS risk_score
+        FROM manage_milestones m
+        LEFT JOIN milestone_requirement_stats mrs ON mrs.milestone_id = m.milestone_id
+        LEFT JOIN milestone_defect_stats mds ON mds.milestone_id = m.milestone_id
+        LEFT JOIN milestone_branch_stats mbs ON mbs.milestone_id = m.milestone_id
+        WHERE m.project_id = p_project_id
+    )
+    SELECT
+        m.milestone_id,
+        m.name AS milestone_name,
+        m.milestone_type,
+        m.is_baseline,
+        m.sprint,
+        m.version,
+        p.name AS project_name,
+        rm.scoped_requirement_count,
+        rm.incomplete_requirement_count,
+        rm.uncovered_requirement_count,
+        rm.blocked_requirement_count,
+        rm.unresolved_defect_count,
+        rm.critical_defect_count,
+        rm.active_branch_count,
+        rm.pending_change_count,
+        rm.latest_branch_activity,
+        rm.risk_score,
+        CASE
+            WHEN rm.risk_score >= 12 THEN 'high'
+            WHEN rm.risk_score >= 6 THEN 'medium'
+            ELSE 'low'
+        END AS risk_level
+    FROM manage_milestones m
+    JOIN manage_projects p ON p.project_id = m.project_id
+    JOIN risk_metrics rm ON rm.milestone_id = m.milestone_id
+    WHERE m.project_id = p_project_id
+    ORDER BY
+        CASE WHEN m.is_baseline THEN 0 ELSE 1 END,
+        rm.risk_score DESC,
+        m.created_at DESC;
+END;
+$$;

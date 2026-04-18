@@ -23,7 +23,7 @@
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
           <tr style="border-bottom:1px solid rgba(28,40,52,0.1);">
-            <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">需求标题</th>
+            <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">需求信息</th>
             <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">类型</th>
             <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">状态</th>
             <th style="padding:10px 12px;text-align:left;color:rgba(28,40,52,0.5);font-weight:500;">优先级</th>
@@ -33,7 +33,17 @@
         </thead>
         <tbody>
           <tr v-for="r in items" :key="r.req_id" style="border-bottom:1px solid rgba(28,40,52,0.06);">
-            <td style="padding:10px 12px;font-weight:600;color:var(--accent)">{{ r.title }}</td>
+            <td style="padding:10px 12px;min-width:300px;">
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <div style="font-weight:600;color:var(--accent)">{{ r.title }}</div>
+                <div style="font-family:monospace;font-size:12px;color:rgba(28,40,52,0.55)">{{ r.req_id }}</div>
+                <div style="color:rgba(28,40,52,0.68);line-height:1.45;">{{ r.description || '—' }}</div>
+                <details style="margin-top:2px;">
+                  <summary style="cursor:pointer;font-size:12px;color:rgba(28,40,52,0.55);">完整字段</summary>
+                  <pre style="margin:8px 0 0;white-space:pre-wrap;word-break:break-all;font-size:11px;line-height:1.45;color:rgba(28,40,52,0.72);">{{ stringifyRecord(r) }}</pre>
+                </details>
+              </div>
+            </td>
             <td style="padding:10px 12px;"><span class="chip chip-neutral">{{ r.requirement_type }}</span></td>
             <td style="padding:10px 12px;"><span :class="['chip', statusColor(r.status)]">{{ r.status }}</span></td>
             <td style="padding:10px 12px;"><span :class="['chip', priorityColor(r.priority)]">{{ r.priority || '—' }}</span></td>
@@ -54,7 +64,10 @@
         <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;">
           <span v-if="r.children && r.children.length" @click="toggleNode(r.req_id)" style="cursor:pointer;color:rgba(28,40,52,0.4);font-size:10px;">{{ expanded[r.req_id] ? '▼' : '▶' }}</span>
           <span v-else style="width:10px;"></span>
-          <span style="font-weight:600;color:var(--accent);flex:1;">{{ r.title }}</span>
+          <span style="display:flex;flex-direction:column;gap:2px;flex:1;">
+            <span style="font-weight:600;color:var(--accent);">{{ r.title }}</span>
+            <span style="font-family:monospace;font-size:11px;color:rgba(28,40,52,0.52);">{{ r.req_id }}</span>
+          </span>
           <span class="chip chip-neutral" style="font-size:11px;">{{ r.requirement_type }}</span>
           <span :class="['chip', statusColor(r.status)]" style="font-size:11px;">{{ r.status }}</span>
           <button class="ghost" style="font-size:11px;padding:2px 6px;" @click="editReq(r)">编辑</button>
@@ -65,7 +78,10 @@
           <div v-for="child in r.children" :key="child.req_id" class="tree-node" :style="{ marginLeft: ((child.depth || r.depth + 1) * 24) + 'px' }">
             <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid rgba(28,40,52,0.06);">
               <span style="width:10px;"></span>
-              <span style="font-weight:500;color:var(--accent);flex:1;">{{ child.title }}</span>
+              <span style="display:flex;flex-direction:column;gap:2px;flex:1;">
+                <span style="font-weight:500;color:var(--accent);">{{ child.title }}</span>
+                <span style="font-family:monospace;font-size:11px;color:rgba(28,40,52,0.52);">{{ child.req_id }}</span>
+              </span>
               <span class="chip chip-neutral" style="font-size:11px;">{{ child.requirement_type }}</span>
               <span :class="['chip', statusColor(child.status)]" style="font-size:11px;">{{ child.status }}</span>
               <button class="ghost" style="font-size:11px;padding:2px 6px;" @click="editReq(child)">编辑</button>
@@ -87,6 +103,10 @@
           <button class="ghost" @click="closeForm">✕</button>
         </div>
         <div class="modal-body">
+          <div v-if="editingId" class="form-group">
+            <label>需求 ID</label>
+            <input :value="editingId" type="text" readonly />
+          </div>
           <div class="form-group">
             <label>所属项目 *</label>
             <select v-model="form.project_id" :disabled="!!editingId">
@@ -274,6 +294,14 @@ function statusColor(s) {
 function priorityColor(p) {
   const map = { low: 'chip-neutral', medium: 'chip-accent', high: 'chip-good' }
   return map[p] || 'chip-neutral'
+}
+
+function stringifyRecord(record) {
+  try {
+    return JSON.stringify(record, null, 2)
+  } catch {
+    return '{}'
+  }
 }
 
 function openRelations(requirement) {

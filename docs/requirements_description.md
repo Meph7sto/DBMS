@@ -134,6 +134,7 @@
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | FR-14.1 | 需求追溯查询（fn_requirement_trace）：连接 requirements、projects、requirement_test_links、test_cases、defects 共 5 张表，查询某项目下所有需求的完整追溯信息，包括关联测试用例和缺陷的 JSON 聚合 |
 | FR-14.2 | 项目进度统计查询（fn_project_progress）：使用 4 个 CTE（requirement_stats、defect_stats、test_coverage_stats、milestone_stats）进行多层嵌套聚合，计算需求完成率和测试覆盖率                      |
+| FR-14.3 | 里程碑交付风险查询（fn_milestone_delivery_risk）：连接 milestones、milestone_nodes、requirements、requirement_test_links、test_cases、requirement_links、defects、branches、change_sets，统计各里程碑的未完成需求、测试缺口、依赖阻塞、未关闭缺陷与待合入变更，用于发布前风险评估 |
 
 ### FR-15 性能分析实验室
 
@@ -206,4 +207,4 @@
 | 协同评论（FR-9）       | manage_comments                                  |
 | 审计日志（FR-10）      | manage_audit_logs                                |
 | 项目统计（FR-13）      | v_project_statistics, v_requirement_details      |
-| 复杂查询（FR-14）      | fn_requirement_trace, fn_project_progress        |
+| 复杂查询（FR-14）      | fn_requirement_trace, fn_project_progress, fn_milestone_delivery_risk |

@@ -22,7 +22,7 @@
             <th class="th">项目</th>
             <th class="th">目标</th>
             <th class="th">作者</th>
-            <th class="th">内容</th>
+            <th class="th">评论信息</th>
             <th class="th">状态</th>
             <th class="th">创建时间</th>
             <th class="th">操作</th>
@@ -36,7 +36,17 @@
               <span style="margin-left:6px;color:rgba(28,40,52,0.65)">{{ item.target_id }}</span>
             </td>
             <td class="td strong">{{ item.created_by }}</td>
-            <td class="td">{{ truncateText(item.content, 48) }}</td>
+            <td class="td" style="min-width:320px;">
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <div style="font-family:monospace;font-size:12px;color:rgba(28,40,52,0.55)">{{ item.comment_id }}</div>
+                <div style="color:rgba(28,40,52,0.78);line-height:1.45;">{{ item.content }}</div>
+                <div style="color:rgba(28,40,52,0.58);font-size:12px;">回复：{{ item.reply_to_id || '—' }}</div>
+                <details style="margin-top:2px;">
+                  <summary style="cursor:pointer;font-size:12px;color:rgba(28,40,52,0.55);">完整字段</summary>
+                  <pre style="margin:8px 0 0;white-space:pre-wrap;word-break:break-all;font-size:11px;line-height:1.45;color:rgba(28,40,52,0.72);">{{ stringifyRecord(item) }}</pre>
+                </details>
+              </div>
+            </td>
             <td class="td">
               <span :class="['chip', item.deleted ? 'chip-accent' : 'chip-good']">
                 {{ item.deleted ? 'deleted' : 'active' }}
@@ -61,6 +71,10 @@
           <button class="ghost" @click="closeForm">✕</button>
         </div>
         <div class="modal-body">
+          <div v-if="editingId" class="form-group">
+            <label>评论 ID</label>
+            <input :value="editingId" type="text" readonly />
+          </div>
           <div class="form-group">
             <label>所属项目 *</label>
             <select v-model="form.project_id">
@@ -311,6 +325,14 @@ async function handleDelete(id) {
     await loadItems()
   } catch (err) {
     error.value = err.response?.data?.detail || '删除失败'
+  }
+}
+
+function stringifyRecord(record) {
+  try {
+    return JSON.stringify(record, null, 2)
+  } catch {
+    return '{}'
   }
 }
 </script>

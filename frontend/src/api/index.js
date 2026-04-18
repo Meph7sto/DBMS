@@ -26,6 +26,10 @@ export const executeQuery = (sql) => api.post('/query', { sql })
 export const importBenchmark = () => api.post('/benchmark/import')
 export const deleteBenchmark = () => api.post('/benchmark/delete')
 
+/* ── Visible Demo Data ── */
+export const importVisibleDemoData = () => api.post('/demo/import')
+export const deleteVisibleDemoData = () => api.post('/demo/delete')
+
 
 /* ── CRUD: Products ── */
 export const listProducts = () => api.get('/crud/products')
@@ -135,3 +139,4 @@ export const listProjectStats = () => api.get('/stats/projects')
 export const getProjectStats = (id) => api.get(`/stats/project/${id}`)
 export const getRequirementTrace = (projectId) => api.get(`/stats/project/${projectId}/trace`)
 export const getProjectProgress = (projectId) => api.get(`/stats/project/${projectId}/progress`)
+export const getMilestoneRisk = (projectId) => api.get(`/stats/project/${projectId}/milestone-risk`)

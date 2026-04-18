@@ -10,6 +10,10 @@
   overflow: hidden;
 }
 
+body.sidebar-resizing .ref-app .app-layout {
+  transition: none;
+}
+
 .ref-app .app-layout:has(.rail.collapsed) {
   --sidebar-width: var(--sidebar-collapsed-width);
 }
@@ -32,6 +36,7 @@
   height: 100%;
   overflow: hidden;
   transition: all 0.3s ease;
+  min-width: 0;
 }
 
 .ref-app .rail.collapsed {

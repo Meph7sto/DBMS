@@ -1,5 +1,5 @@
 <template>
-  <div style="display:flex;flex-direction:column;height:100%;">
+  <div style="display:flex;flex-direction:column;height:100%;min-height:0;">
     <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--border-color); background: var(--bg-card)">
       <span class="type-sample-label" style="font-size: 13px;">{{ title }}</span>
       <span v-if="rowCount !== null" class="type-sample-label" style="color:var(--color-terracotta); font-size: 13px;">
@@ -7,9 +7,15 @@
       </span>
     </div>
 
-    <div v-if="error" style="padding: 16px 20px; color: var(--color-error); font-family: var(--font-mono); font-size: 13px;">{{ error }}</div>
+    <div
+      v-if="error"
+      style="flex:1;overflow:auto;padding:16px 20px;color:var(--color-error);font-family:var(--font-mono);font-size:13px;white-space:pre-wrap;line-height:1.6;"
+    >{{ error }}</div>
 
-    <div v-else-if="message" style="padding: 16px 20px; color: var(--text-secondary); font-family: var(--font-mono); font-size: 13px;">{{ message }}</div>
+    <div
+      v-else-if="message"
+      style="flex:1;overflow:auto;padding:16px 20px;color:var(--text-secondary);font-family:var(--font-mono);font-size:13px;white-space:pre-wrap;line-height:1.6;"
+    >{{ message }}</div>
 
     <div v-else-if="columns.length" style="flex:1; overflow:auto;">
       <table style="width:100%; border-collapse:collapse; font-family: var(--font-mono); font-size:13px; text-align:left;">

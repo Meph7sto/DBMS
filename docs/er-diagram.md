@@ -679,3 +679,7 @@
 ### 8.2 fn_project_progress(project_id)
 
 项目进度 CTE 统计，使用 4 个 CTE（`requirement_stats`、`defect_stats`、`test_coverage_stats`、`milestone_stats`）进行多层嵌套聚合。
+
+### 8.3 fn_milestone_delivery_risk(project_id)
+
+里程碑交付风险分析，围绕 `manage_milestones` 和 `manage_milestone_nodes` 汇总当前范围需求，并进一步关联 `manage_requirement_test_links`、`manage_test_cases`、`manage_requirement_links`、`manage_defects`、`manage_branches`、`manage_change_sets`，统计测试覆盖缺口、依赖阻塞、未关闭缺陷和待处理变更，用于发布前风险识别与排序。

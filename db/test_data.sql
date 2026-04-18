@@ -190,11 +190,11 @@ VALUES
     ('cs_001', 'branch_001', 'added', 'req_006', NULL, '{"title": "方言声学模型训练", "status": "draft"}'::JSONB, 'user_wangwu', NOW() - INTERVAL '4 days'),
     ('cs_002', 'branch_001', 'added', 'req_007', NULL, '{"title": "方言切换UI交互", "status": "draft"}'::JSONB, 'user_wangwu', NOW() - INTERVAL '3 days'),
     ('cs_003', 'branch_001', 'modified', 'req_005', '{"status": "confirmed"}'::JSONB, '{"status": "under_review"}'::JSONB, 'user_wangwu', NOW() - INTERVAL '2 days'),
-    ('cs_004', 'branch_001', 'added', 'tc_006', NULL, '{"title": "方言切换功能测试", "status": "draft"}'::JSONB, 'user_wangwu', NOW() - INTERVAL '2 days'),
+    ('cs_004', 'branch_001', 'added', 'req_007', NULL, '{"title": "方言切换功能测试", "status": "draft"}'::JSONB, 'user_wangwu', NOW() - INTERVAL '2 days'),
 
     ('cs_005', 'branch_002', 'added', 'req_009', NULL, '{"title": "麦克风阵列信号增强", "status": "in_progress"}'::JSONB, 'user_lisi', NOW() - INTERVAL '3 days'),
     ('cs_006', 'branch_002', 'added', 'req_010', NULL, '{"title": "风噪抑制算法集成", "status": "draft"}'::JSONB, 'user_lisi', NOW() - INTERVAL '2 days'),
-    ('cs_007', 'branch_002', 'added', 'tc_007', NULL, '{"title": "麦克风阵列声源定位", "status": "active"}'::JSONB, 'user_lisi', NOW() - INTERVAL '2 days'),
+    ('cs_007', 'branch_002', 'added', 'req_009', NULL, '{"title": "麦克风阵列声源定位", "status": "active"}'::JSONB, 'user_lisi', NOW() - INTERVAL '2 days'),
 
     ('cs_008', 'branch_003', 'modified', 'req_014', '{"DSP_latency": "15ms"}'::JSONB, '{"DSP_latency": "8ms", "status": "completed"}'::JSONB, 'user_wangwu', NOW() - INTERVAL '2 days'),
 

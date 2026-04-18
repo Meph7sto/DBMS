@@ -1,8 +1,8 @@
 <template>
-  <aside class="rail" :class="{ collapsed: isCollapsed }">
+  <aside ref="railRef" class="rail" :class="{ collapsed }">
     <div class="brand">
-      <button class="sidebar-toggle" @click="isCollapsed = !isCollapsed" :title="isCollapsed ? '展开侧边栏' : '折叠侧边栏'">
-        <span>{{ isCollapsed ? '▷' : '◁' }}</span>
+      <button class="sidebar-toggle" @click="toggleCollapsed" :title="collapsed ? '展开侧边栏' : '折叠侧边栏'">
+        <span>{{ collapsed ? '▷' : '◁' }}</span>
       </button>
       <div class="brand-content">
         <div class="brand-mark">DB</div>
@@ -61,6 +61,11 @@
         <span class="nav-label">审计日志</span>
       </router-link>
 
+      <router-link to="/complex-queries" class="rail-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h7"/><circle cx="18" cy="12" r="3"/><circle cx="14" cy="18" r="2"/></svg>
+        <span class="nav-label">复杂查询</span>
+      </router-link>
+
       <router-link to="/query" class="rail-link">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
         <span class="nav-label">新建查询</span>
@@ -98,25 +103,42 @@
     </nav>
 
     <div class="rail-meta">
-      <div class="meta-block" v-if="!isCollapsed" style="padding: 16px;">
+      <div class="meta-block" v-if="!collapsed" style="padding: 16px;">
         <div class="type-sample-label" style="margin-bottom: 12px;">操作选项</div>
         <button class="btn-warm-sand" style="width: 100%;" @click="$emit('refresh')">↻ 刷新数据库字典</button>
       </div>
     </div>
+
+    <div
+      class="sidebar-resizer"
+      :class="{ dragging: isDragging }"
+      role="separator"
+      aria-label="调整侧边栏宽度"
+      aria-orientation="vertical"
+      :aria-hidden="collapsed"
+      tabindex="0"
+      @pointerdown="onResizeStart"
+      @keydown.left.prevent="nudgeWidth(-16)"
+      @keydown.right.prevent="nudgeWidth(16)"
+    ></div>
   </aside>
 </template>
 
 <script setup>
-import { reactive, ref, watch } from 'vue'
+import { onBeforeUnmount, reactive, ref, watch } from 'vue'
 
 const props = defineProps({
   schemas: { type: Array, default: () => [] },
   tablesMap: { type: Object, default: () => ({}) },
+  collapsed: { type: Boolean, default: false },
+  width: { type: Number, default: 280 },
 })
-defineEmits(['refresh'])
+const emit = defineEmits(['refresh', 'update:collapsed', 'update:width'])
 
 const expanded = reactive({})
-const isCollapsed = ref(false)
+const isDragging = ref(false)
+const railRef = ref(null)
+let activePointerId = null
 
 watch(
   () => props.schemas,
@@ -131,9 +153,68 @@ watch(
 function toggleSchema(s) {
   expanded[s] = !expanded[s]
 }
+
+function toggleCollapsed() {
+  emit('update:collapsed', !props.collapsed)
+}
+
+function nudgeWidth(delta) {
+  if (props.collapsed) {
+    return
+  }
+  emit('update:width', props.width + delta)
+}
+
+function onResizeStart(event) {
+  if (props.collapsed) {
+    return
+  }
+
+  event.preventDefault()
+  activePointerId = event.pointerId
+  isDragging.value = true
+  document.body.classList.add('sidebar-resizing')
+  window.addEventListener('pointermove', onResizeMove)
+  window.addEventListener('pointerup', onResizeEnd)
+  window.addEventListener('pointercancel', onResizeEnd)
+}
+
+function onResizeMove(event) {
+  if (!isDragging.value || event.pointerId !== activePointerId) {
+    return
+  }
+
+  const layoutLeft = railRef.value?.closest('.app-layout')?.getBoundingClientRect().left ?? 0
+  emit('update:width', event.clientX - layoutLeft)
+}
+
+function onResizeEnd(event) {
+  if (activePointerId !== null && event.pointerId !== activePointerId) {
+    return
+  }
+
+  activePointerId = null
+  isDragging.value = false
+  document.body.classList.remove('sidebar-resizing')
+  window.removeEventListener('pointermove', onResizeMove)
+  window.removeEventListener('pointerup', onResizeEnd)
+  window.removeEventListener('pointercancel', onResizeEnd)
+}
+
+onBeforeUnmount(() => {
+  document.body.classList.remove('sidebar-resizing')
+  window.removeEventListener('pointermove', onResizeMove)
+  window.removeEventListener('pointerup', onResizeEnd)
+  window.removeEventListener('pointercancel', onResizeEnd)
+})
 </script>
 
 <style scoped>
+:global(body.sidebar-resizing) {
+  cursor: col-resize;
+  user-select: none;
+}
+
 .ref-app .brand {
   position: relative;
   padding-bottom: 16px;
@@ -230,5 +311,39 @@ function toggleSchema(s) {
 .ref-app .perf-dot {
   background: var(--color-terracotta);
   box-shadow: 0 0 0 2px rgba(201, 100, 66, 0.12);
+}
+
+.ref-app .sidebar-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 12px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 30;
+}
+
+.ref-app .sidebar-resizer::after {
+  content: "";
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  right: 3px;
+  width: 2px;
+  background: transparent;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ref-app .sidebar-resizer:hover::after,
+.ref-app .sidebar-resizer:focus-visible::after,
+.ref-app .sidebar-resizer.dragging::after {
+  background: rgba(201, 100, 66, 0.45);
+  box-shadow: 0 0 0 1px rgba(201, 100, 66, 0.12);
+}
+
+.ref-app .rail.collapsed .sidebar-resizer {
+  pointer-events: none;
+  opacity: 0;
 }
 </style>

@@ -1,16 +1,30 @@
 """SQL query execution endpoint."""
 
-import os
+from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from database import db
 
 
 router = APIRouter(tags=["query"])
+DB_DIR = Path(__file__).resolve().parents[2] / "db"
+BENCHMARK_SQL_FILE = DB_DIR / "generate_benchmark_data.sql"
+VISIBLE_DEMO_SQL_FILE = DB_DIR / "visible_demo_data.sql"
+VISIBLE_DEMO_CLEANUP_SQL_FILE = DB_DIR / "visible_demo_data_cleanup.sql"
 
 
 class QueryRequest(BaseModel):
     sql: str
+
+
+def _execute_sql_file(path: Path, missing_detail: str):
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=missing_detail)
+    sql = path.read_text(encoding="utf-8")
+    try:
+        db.execute(sql)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.post("/query")
@@ -27,16 +41,8 @@ def execute_query(req: QueryRequest):
 
 @router.post("/benchmark/import")
 def import_benchmark():
-    file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'db', 'generate_benchmark_data.sql'))
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Benchmark script not found")
-    with open(file_path, "r", encoding="utf-8") as f:
-        sql = f.read()
-    try:
-        db.execute(sql)
-        return {"ok": True, "message": "测试数据引入成功"}
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    _execute_sql_file(BENCHMARK_SQL_FILE, "Benchmark script not found")
+    return {"ok": True, "message": "测试数据引入成功"}
 
 @router.post("/benchmark/delete")
 def delete_benchmark():
@@ -63,3 +69,15 @@ def delete_benchmark():
         return {"ok": True, "message": "测试数据删除成功"}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/demo/import")
+def import_visible_demo_data():
+    _execute_sql_file(VISIBLE_DEMO_SQL_FILE, "Visible demo data script not found")
+    return {"ok": True, "message": "演示数据引入成功"}
+
+
+@router.post("/demo/delete")
+def delete_visible_demo_data():
+    _execute_sql_file(VISIBLE_DEMO_CLEANUP_SQL_FILE, "Visible demo cleanup script not found")
+    return {"ok": True, "message": "演示数据删除成功"}

@@ -1,12 +1,16 @@
 <template>
   <div class="ref-app">
     <div class="grain"></div>
-    <div class="app-layout" :class="{ 'no-sidebar': !connection }">
+    <div class="app-layout" :class="{ 'no-sidebar': !connection }" :style="connection ? sidebarLayoutStyle : undefined">
       <Sidebar
         v-if="connection"
         :schemas="schemas"
         :tables-map="tablesMap"
+        :collapsed="isSidebarCollapsed"
+        :width="sidebarWidth"
         @refresh="loadMeta"
+        @update:collapsed="onSidebarCollapsedChange"
+        @update:width="onSidebarWidthChange"
       />
       <main class="canvas">
         <ConnectionModal
@@ -25,7 +29,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   connect,
   connectionDefaults,
@@ -37,10 +41,40 @@ import {
 import Sidebar from './components/Sidebar.vue'
 import ConnectionModal from './components/ConnectionModal.vue'
 
+const DEFAULT_SIDEBAR_WIDTH = 280
+const SIDEBAR_COLLAPSED_WIDTH = 72
+const SIDEBAR_MIN_WIDTH = 240
+const SIDEBAR_MAX_WIDTH = 480
+const SIDEBAR_STORAGE_KEY = 'ref-app-sidebar-width'
+
 const connection = ref(null)
 const showConnect = ref(false)
 const schemas = ref([])
 const tablesMap = ref({})
+const sidebarWidth = ref(DEFAULT_SIDEBAR_WIDTH)
+const isSidebarCollapsed = ref(false)
+
+const sidebarLayoutStyle = computed(() => ({
+  '--sidebar-width': `${isSidebarCollapsed.value ? SIDEBAR_COLLAPSED_WIDTH : sidebarWidth.value}px`,
+}))
+
+function clampSidebarWidth(width) {
+  const viewportMax = typeof window === 'undefined'
+    ? SIDEBAR_MAX_WIDTH
+    : Math.min(SIDEBAR_MAX_WIDTH, Math.floor(window.innerWidth * 0.45))
+
+  return Math.min(Math.max(width, SIDEBAR_MIN_WIDTH), Math.max(SIDEBAR_MIN_WIDTH, viewportMax))
+}
+
+function readSidebarWidth() {
+  if (typeof window === 'undefined') {
+    return DEFAULT_SIDEBAR_WIDTH
+  }
+
+  const raw = window.localStorage.getItem(SIDEBAR_STORAGE_KEY)
+  const parsed = Number.parseInt(raw ?? '', 10)
+  return Number.isFinite(parsed) ? clampSidebarWidth(parsed) : DEFAULT_SIDEBAR_WIDTH
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -111,6 +145,18 @@ function onConnected(info) {
   loadMeta()
 }
 
+function onSidebarCollapsedChange(collapsed) {
+  isSidebarCollapsed.value = collapsed
+}
+
+function onSidebarWidthChange(width) {
+  sidebarWidth.value = clampSidebarWidth(width)
+}
+
+function handleWindowResize() {
+  sidebarWidth.value = clampSidebarWidth(sidebarWidth.value)
+}
+
 async function onDisconnect() {
   try {
     await disconnect()
@@ -121,7 +167,21 @@ async function onDisconnect() {
   showConnect.value = true
 }
 
-onMounted(checkConnection)
+watch(sidebarWidth, (width) => {
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(width))
+  }
+})
+
+onMounted(() => {
+  sidebarWidth.value = readSidebarWidth()
+  window.addEventListener('resize', handleWindowResize)
+  checkConnection()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleWindowResize)
+})
 </script>
 
 <style scoped>
