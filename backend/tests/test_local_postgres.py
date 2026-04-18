@@ -20,9 +20,17 @@ class LocalPostgresTests(unittest.TestCase):
             "local_postgres._candidate_install_dirs",
             return_value=[root],
         ):
-            with mock.patch("pathlib.Path.exists", autospec=True, side_effect=fake_exists):
-                with mock.patch("local_postgres._read_configured_port", return_value=5438):
-                    installation = local_postgres._find_installation(5438)
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "LOCAL_PG_BIN_DIR": str(root / "bin"),
+                    "LOCAL_PG_DATA_DIR": str(root / "data"),
+                },
+                clear=False,
+            ):
+                with mock.patch("pathlib.Path.exists", autospec=True, side_effect=fake_exists):
+                    with mock.patch("local_postgres._read_configured_port", return_value=5438):
+                        installation = local_postgres._find_installation(5438)
 
         self.assertIsNotNone(installation)
         self.assertEqual(installation.install_dir, root)
