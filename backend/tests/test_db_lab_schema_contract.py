@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_SQL = ROOT / "db" / "requirements_db.sql"
 PATCH_SQL = ROOT / "db" / "requirements_db_constraints_patch.sql"
 BENCHMARK_SQL = ROOT / "db" / "generate_benchmark_data.sql"
+BENCHMARK_CLEANUP_SQL = ROOT / "db" / "cleanup_benchmark_data.sql"
 
 
 EXPECTED_TABLES = {
@@ -97,3 +98,18 @@ def test_complex_query_signatures_and_benchmark_script_exist() -> None:
     assert "completion_rate_percent numeric" in schema_text.lower()
     assert "risk_level text" in schema_text.lower()
     assert BENCHMARK_SQL.exists()
+    assert BENCHMARK_CLEANUP_SQL.exists()
+
+
+def test_benchmark_sql_avoids_known_constraint_mismatches() -> None:
+    benchmark_text = BENCHMARK_SQL.read_text(encoding="utf-8").lower()
+    cleanup_text = BENCHMARK_CLEANUP_SQL.read_text(encoding="utf-8").lower()
+
+    assert "insert into manage_milestone_nodes" in benchmark_text
+    assert "when 0 then 'parent'" not in benchmark_text
+    assert "when 1 then 'relates'" not in benchmark_text
+    assert "'depends_on'" in benchmark_text
+    assert "'relates_to'" in benchmark_text
+    assert "((gs - 1) / 2) + 1" in benchmark_text
+    assert "delete from manage_requirement_links" in cleanup_text
+    assert "delete from manage_project_members" in cleanup_text

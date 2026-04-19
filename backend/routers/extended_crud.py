@@ -13,6 +13,7 @@ from routers.crud import VALID_ROLES, err, handle_db_error
 router = APIRouter(prefix="/api/crud", tags=["extended-crud"])
 
 VALID_REQUIREMENT_LINK_TYPES = {"blocks", "depends_on", "relates_to", "duplicates"}
+VALID_REQUIREMENT_TEST_LINK_TYPES = {"verification", "coverage", "regression"}
 VALID_BRANCH_STATUS = {"active", "under_review", "merged", "closed"}
 VALID_CHANGE_TYPES = {"added", "modified", "deleted", "moved"}
 VALID_COMMENT_TARGETS = {"requirement", "defect", "test_case", "milestone"}
@@ -226,6 +227,17 @@ def validate_requirement_test_pair(requirement_id: str, test_case_id: str):
     test_case = require_test_case(test_case_id)
     if requirement["project_id"] != test_case["project_id"]:
         raise HTTPException(status_code=400, detail="错误：需求与测试用例必须属于同一项目")
+
+
+def validate_requirement_test_link_type(link_type: str):
+    if link_type not in VALID_REQUIREMENT_TEST_LINK_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"错误：需求-测试关联类型『{link_type}』不在允许的范围内"
+                "（verification/coverage/regression）"
+            ),
+        )
 
 
 def validate_milestone_requirement_pair(milestone_id: str, requirement_id: str):
@@ -611,6 +623,7 @@ def create_requirement_test_link(item: RequirementTestLinkCreate):
     test_case_id = ensure_required_text(item.test_case_id, "test_case_id")
     link_type = ensure_required_text(item.link_type, "link_type")
     validate_requirement_test_pair(requirement_id, test_case_id)
+    validate_requirement_test_link_type(link_type)
     try:
         result = db.execute(
             """INSERT INTO manage_requirement_test_links
@@ -639,6 +652,7 @@ def update_requirement_test_link(link_id: int, item: RequirementTestLinkUpdate):
     test_case_id = ensure_required_text(test_case_id, "test_case_id")
     link_type = ensure_required_text(link_type, "link_type")
     validate_requirement_test_pair(requirement_id, test_case_id)
+    validate_requirement_test_link_type(link_type)
 
     try:
         db.execute(

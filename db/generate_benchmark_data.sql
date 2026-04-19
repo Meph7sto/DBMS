@@ -59,6 +59,9 @@ WHERE test_case_id LIKE 'btc_%';
 DELETE FROM manage_requirements
 WHERE req_id LIKE 'breq_%';
 
+DELETE FROM manage_project_members
+WHERE project_id LIKE 'bproj_%';
+
 DELETE FROM manage_projects
 WHERE project_id LIKE 'bproj_%';
 
@@ -68,9 +71,6 @@ WHERE product_id LIKE 'bprod_%'
 
 DELETE FROM manage_products
 WHERE product_id LIKE 'bprod_%';
-
-DELETE FROM manage_project_members
-WHERE project_id LIKE 'bproj_%';
 
 -- ============================================================
 -- 1. Products: 10
@@ -158,7 +158,7 @@ SELECT
         WHEN gs IN (9, 18) THEN 'archived'
         ELSE 'active'
     END AS status,
-    'bprod_' || lpad(gs::text, 3, '0') AS product_id,
+    'bprod_' || lpad((((gs - 1) / 2) + 1)::text, 3, '0') AS product_id,
     'bench-session-' || lpad(gs::text, 3, '0') AS current_session_id,
     'bench_user_' || lpad((((gs - 1) % 60) + 1)::text, 3, '0') AS created_by,
     NOW() - make_interval(days => 210 - gs * 3) AS created_at,
@@ -283,7 +283,7 @@ SELECT
         WHEN local_num <= 200 THEN
             'breq_' || lpad((((project_num - 1) * 500) + (1 + ((local_num - 51) / 3)))::text, 5, '0')
         ELSE
-            'breq_' || lpad((((project_num - 1) * 500) + (51 + ((local_num - 201) % 150 / 5))::text, 5, '0')
+            'breq_' || lpad((((project_num - 1) * 500) + 51 + (((local_num - 201) % 150) / 5))::text, 5, '0')
     END AS parent_id,
     CASE
         WHEN local_num <= 50 THEN local_num - 1
@@ -324,6 +324,15 @@ WITH tc_seed AS (
         ((gs - 1) / 25) + 1 AS project_num,
         ((gs - 1) % 25) + 1 AS local_num
     FROM generate_series(1, 500) AS gs
+),
+req_slots AS (
+    SELECT
+        project_id,
+        req_id,
+        row_number() OVER (PARTITION BY project_id ORDER BY req_id) AS rn
+    FROM manage_requirements
+    WHERE req_id LIKE 'breq_%'
+      AND deleted = FALSE
 )
 INSERT INTO manage_test_cases (
     test_case_id,
@@ -345,11 +354,30 @@ SELECT
         WHEN tc_num % 4 = 0 THEN 'draft'
         ELSE 'active'
     END AS status,
-    'breq_' || lpad((((project_num - 1) * 500) + ((local_num * 7 - 1) % 500) + 1)::text, 5, '0') AS source,
+    req_source.req_id AS source,
     'bench_user_' || lpad(((tc_num + 5) % 60 + 1)::text, 3, '0') AS created_by,
     NOW() - make_interval(days => 120 - (tc_num % 90)) AS created_at
-FROM tc_seed;
+FROM tc_seed
+JOIN req_slots AS req_source
+  ON req_source.project_id = 'bproj_' || lpad(project_num::text, 3, '0')
+ AND req_source.rn = local_num;
 
+WITH link_seed AS (
+    SELECT
+        gs AS tc_num,
+        ((gs - 1) / 25) + 1 AS project_num,
+        ((gs - 1) % 25) + 1 AS local_num
+    FROM generate_series(1, 500) AS gs
+),
+req_slots AS (
+    SELECT
+        project_id,
+        req_id,
+        row_number() OVER (PARTITION BY project_id ORDER BY req_id) AS rn
+    FROM manage_requirements
+    WHERE req_id LIKE 'breq_%'
+      AND deleted = FALSE
+)
 INSERT INTO manage_requirement_test_links (
     requirement_id,
     test_case_id,
@@ -357,7 +385,7 @@ INSERT INTO manage_requirement_test_links (
     created_at
 )
 SELECT
-    'breq_' || lpad((((project_num - 1) * 500) + ((local_num * 7 - 1) % 500) + 1)::text, 5, '0') AS requirement_id,
+    req_link.req_id AS requirement_id,
     'btc_' || lpad(tc_num::text, 5, '0') AS test_case_id,
     CASE
         WHEN tc_num % 6 = 0 THEN 'regression'
@@ -365,13 +393,10 @@ SELECT
         ELSE 'verification'
     END AS link_type,
     NOW() - make_interval(days => 90 - (tc_num % 60)) AS created_at
-FROM (
-    SELECT
-        gs AS tc_num,
-        ((gs - 1) / 25) + 1 AS project_num,
-        ((gs - 1) % 25) + 1 AS local_num
-    FROM generate_series(1, 500) AS gs
-) AS link_seed;
+FROM link_seed
+JOIN req_slots AS req_link
+  ON req_link.project_id = 'bproj_' || lpad(project_num::text, 3, '0')
+ AND req_link.rn = local_num + 25;
 
 -- ============================================================
 -- 5. Defects: 500 (25 per project)
@@ -383,6 +408,15 @@ WITH def_seed AS (
         ((gs - 1) / 25) + 1 AS project_num,
         ((gs - 1) % 25) + 1 AS local_num
     FROM generate_series(1, 500) AS gs
+),
+req_slots AS (
+    SELECT
+        project_id,
+        req_id,
+        row_number() OVER (PARTITION BY project_id ORDER BY req_id) AS rn
+    FROM manage_requirements
+    WHERE req_id LIKE 'breq_%'
+      AND deleted = FALSE
 )
 INSERT INTO manage_defects (
     defect_id,
@@ -405,7 +439,7 @@ INSERT INTO manage_defects (
 SELECT
     'bdef_' || lpad(defect_num::text, 5, '0') AS defect_id,
     'bproj_' || lpad(project_num::text, 3, '0') AS project_id,
-    'breq_' || lpad((((project_num - 1) * 500) + ((local_num * 9 - 1) % 500) + 1)::text, 5, '0') AS requirement_id,
+    req_defect.req_id AS requirement_id,
     'Benchmark Defect P' || project_num || '-' || lpad(local_num::text, 3, '0') AS title,
     '1. 打开项目 ' || project_num || E'\n'
     || '2. 执行场景 ' || local_num || E'\n'
@@ -441,7 +475,10 @@ SELECT
     NOW() - make_interval(days => 110 - (defect_num % 85)) AS created_at,
     'bench_user_' || lpad(((defect_num + 9) % 60 + 1)::text, 3, '0') AS updated_by,
     NOW() - make_interval(days => 18 - (defect_num % 14)) AS updated_at
-FROM def_seed;
+FROM def_seed
+JOIN req_slots AS req_defect
+  ON req_defect.project_id = 'bproj_' || lpad(project_num::text, 3, '0')
+ AND req_defect.rn = local_num + 50;
 
 -- ============================================================
 -- 6. Milestones: 100 (5 per project)
@@ -504,6 +541,68 @@ SELECT
 FROM ms_seed;
 
 -- ============================================================
+-- 6b. Milestone Nodes: 1000 (10 per milestone)
+-- ============================================================
+
+WITH node_seed AS (
+    SELECT
+        gs AS node_num,
+        ((gs - 1) / 10) + 1 AS milestone_num,
+        (((gs - 1) / 10) / 5) + 1 AS project_num,
+        ((gs - 1) % 10) + 1 AS local_num
+    FROM generate_series(1, 1000) AS gs
+),
+req_slots AS (
+    SELECT
+        project_id,
+        req_id,
+        requirement_type,
+        status,
+        title,
+        description,
+        parent_id,
+        order_index,
+        row_number() OVER (PARTITION BY project_id ORDER BY req_id) AS rn
+    FROM manage_requirements
+    WHERE req_id LIKE 'breq_%'
+      AND deleted = FALSE
+)
+INSERT INTO manage_milestone_nodes (
+    snapshot_id,
+    milestone_id,
+    requirement_id,
+    requirement_type,
+    status,
+    title,
+    description,
+    parent_id,
+    order_index,
+    snapshot_data,
+    created_at
+)
+SELECT
+    'bsnap_' || lpad(node_num::text, 5, '0') AS snapshot_id,
+    'bms_' || lpad(milestone_num::text, 4, '0') AS milestone_id,
+    req_node.req_id AS requirement_id,
+    req_node.requirement_type,
+    req_node.status,
+    req_node.title,
+    req_node.description,
+    req_node.parent_id,
+    req_node.order_index,
+    jsonb_build_object(
+        'source', 'benchmark',
+        'milestone_num', milestone_num,
+        'project_num', project_num,
+        'slot', req_node.rn
+    ) AS snapshot_data,
+    NOW() - make_interval(days => 65 - (node_num % 45)) AS created_at
+FROM node_seed
+JOIN req_slots AS req_node
+  ON req_node.project_id = 'bproj_' || lpad(project_num::text, 3, '0')
+ AND req_node.rn = ((local_num - 1) * 12) + 1;
+
+-- ============================================================
 -- 7. Branches: 200 (10 per project)
 -- ============================================================
 
@@ -533,7 +632,7 @@ SELECT
         WHEN 1 THEN 'feature/benchmark-core-' || project_num
         WHEN 2 THEN 'feature/benchmark-ui-' || project_num
         WHEN 3 THEN 'fix/benchmark-hotfix-' || project_num
-        ELSE 'refactor/benchmark-sync-' || project_num
+        ELSE 'refactor/benchmark-sync-' || project_num || '-' || local_num
     END AS name,
     CASE
         WHEN branch_num % 13 = 0 THEN 'closed'
@@ -559,8 +658,17 @@ WITH cs_seed AS (
     SELECT
         gs AS change_num,
         ((gs - 1) / 5) + 1 AS branch_num,
-        (((((gs - 1) / 5) - 1) / 10) + 1) AS project_num
+        (((gs - 1) / 5) / 10) + 1 AS project_num
     FROM generate_series(1, 1000) AS gs
+),
+req_slots AS (
+    SELECT
+        project_id,
+        req_id,
+        row_number() OVER (PARTITION BY project_id ORDER BY req_id) AS rn
+    FROM manage_requirements
+    WHERE req_id LIKE 'breq_%'
+      AND deleted = FALSE
 )
 INSERT INTO manage_change_sets (
     change_id,
@@ -581,7 +689,7 @@ SELECT
         WHEN change_num % 2 = 0 THEN 'modified'
         ELSE 'added'
     END AS change_type,
-    'breq_' || lpad((((project_num - 1) * 500) + ((change_num * 17 - 1) % 500) + 1)::text, 5, '0') AS requirement_id,
+    req_change.req_id AS requirement_id,
     CASE
         WHEN change_num % 10 = 0 THEN
             jsonb_build_object('status', 'confirmed', 'order_index', change_num % 8)
@@ -604,7 +712,10 @@ SELECT
     END AS after_data,
     'bench_user_' || lpad(((change_num + 15) % 60 + 1)::text, 3, '0') AS created_by,
     NOW() - make_interval(days => 70 - (change_num % 50)) AS created_at
-FROM cs_seed;
+FROM cs_seed
+JOIN req_slots AS req_change
+  ON req_change.project_id = 'bproj_' || lpad(project_num::text, 3, '0')
+ AND req_change.rn = ((change_num - 1) % 120) + 1;
 
 -- ============================================================
 -- 9. Audit Logs: 2000 (100 per project)
@@ -614,7 +725,7 @@ WITH log_seed AS (
     SELECT
         gs AS log_num,
         ((gs - 1) / 100) + 1 AS project_num,
-        ((gs - 1) / 100) + 1 AS product_num
+        (((gs - 1) / 100) / 2) + 1 AS product_num
     FROM generate_series(1, 2000) AS gs
 )
 INSERT INTO manage_audit_logs (
@@ -677,21 +788,45 @@ SELECT
 FROM log_seed;
 
 -- ============================================================
--- 10. Requirement Links: ~1000
--- Random links between requirements for tree structure testing
+-- 10. Requirement Links: 1000
+-- 同项目范围内的平行依赖，用于风险分析和关联查询压测
 -- ============================================================
 
+WITH req_link_seed AS (
+    SELECT
+        gs,
+        ((gs - 1) / 50) + 1 AS project_num,
+        ((gs - 1) % 50) + 1 AS local_num
+    FROM generate_series(1, 1000) AS gs
+),
+req_slots AS (
+    SELECT
+        project_id,
+        req_id,
+        row_number() OVER (PARTITION BY project_id ORDER BY req_id) AS rn
+    FROM manage_requirements
+    WHERE req_id LIKE 'breq_%'
+      AND deleted = FALSE
+)
 INSERT INTO manage_requirement_links (source_req_id, target_req_id, link_type, created_at)
 SELECT
-    'breq_' || lpad(((gs * 13 - 1) % 10000 + 1)::text, 5, '0') AS source_req_id,
-    'breq_' || lpad(((gs * 17 + 5) % 10000 + 1)::text, 5, '0') AS target_req_id,
-    CASE gs % 3
-        WHEN 0 THEN 'parent'
-        WHEN 1 THEN 'relates'
-        ELSE 'blocks'
+    src.req_id AS source_req_id,
+    tgt.req_id AS target_req_id,
+    CASE gs % 4
+        WHEN 0 THEN 'blocks'
+        WHEN 1 THEN 'depends_on'
+        WHEN 2 THEN 'relates_to'
+        ELSE 'duplicates'
     END AS link_type,
     NOW() - make_interval(days => 100 - (gs % 80)) AS created_at
-FROM generate_series(1, 1000) AS gs;
+FROM req_link_seed
+JOIN req_slots AS src
+  ON src.project_id = 'bproj_' || lpad(project_num::text, 3, '0')
+ AND src.rn = local_num + 60
+JOIN req_slots AS tgt
+  ON tgt.project_id = src.project_id
+ AND tgt.rn = local_num + 110
+WHERE src.req_id <> tgt.req_id;
 
 COMMIT;
 
@@ -707,6 +842,7 @@ ANALYZE manage_test_cases;
 ANALYZE manage_requirement_test_links;
 ANALYZE manage_defects;
 ANALYZE manage_milestones;
+ANALYZE manage_milestone_nodes;
 ANALYZE manage_branches;
 ANALYZE manage_change_sets;
 ANALYZE manage_audit_logs;

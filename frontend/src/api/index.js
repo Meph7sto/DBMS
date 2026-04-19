@@ -25,6 +25,7 @@ export const executeQuery = (sql) => api.post('/query', { sql })
 /* ── Benchmark ── */
 export const importBenchmark = () => api.post('/benchmark/import')
 export const deleteBenchmark = () => api.post('/benchmark/delete')
+export const getBenchmarkSummary = () => api.get('/benchmark/summary')
 
 /* ── Visible Demo Data ── */
 export const importVisibleDemoData = () => api.post('/demo/import')
@@ -140,3 +141,7 @@ export const getProjectStats = (id) => api.get(`/stats/project/${id}`)
 export const getRequirementTrace = (projectId) => api.get(`/stats/project/${projectId}/trace`)
 export const getProjectProgress = (projectId) => api.get(`/stats/project/${projectId}/progress`)
 export const getMilestoneRisk = (projectId) => api.get(`/stats/project/${projectId}/milestone-risk`)
+export const getPerformanceGuide = () => api.get('/stats/performance/guide')
+export const getPerformancePreview = (scenarioKey) => api.get(`/stats/performance/preview/${scenarioKey}`)
+export const listRequirementDetails = (projectId) =>
+  api.get('/stats/requirements/details', { params: projectId ? { project_id: projectId } : {} })

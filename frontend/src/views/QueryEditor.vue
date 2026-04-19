@@ -1,5 +1,44 @@
 <template>
-  <div class="query-page">
+  <div ref="pageRef" class="query-page">
+    <div ref="editorCardRef" class="card query-editor-card" style="padding:0; overflow:hidden">
+      <div class="card-header" style="padding: 16px 20px; margin-bottom: 0;">
+         <div>
+           <h4 class="card-kicker" style="margin: 0;">SQL 编辑器</h4>
+           <div class="editor-hint">编辑区域已置顶显示，进入页面首屏即可直接输入 SQL。</div>
+         </div>
+         <div class="hero-actions" style="margin: 0; display: flex; align-items: center;">
+           <span class="eyebrow" style="margin-right:12px;text-transform:none">Ctrl + Enter 执行</span>
+           <button class="ghost" @click="sqlText = ''">清空</button>
+           <button class="primary" :disabled="running" @click="run">
+             {{ running ? '执行中...' : '▶ 执行' }}
+           </button>
+         </div>
+      </div>
+      <div class="editor-panel">
+        <textarea
+          v-model="sqlText"
+          class="native-sql-editor"
+          spellcheck="false"
+          placeholder="在这里输入 SQL，例如：SELECT 1;"
+          @keydown.ctrl.enter.prevent="run"
+          @keydown.meta.enter.prevent="run"
+        />
+      </div>
+      <div v-if="elapsed !== null" style="padding: 8px 20px; font-size: 11px; color: rgba(28,40,52,0.6);" class="eyebrow">
+        耗时: {{ elapsed }} ms
+      </div>
+    </div>
+
+    <div class="card wide result-card" style="overflow:hidden;display:flex;flex-direction:column;padding:0;background:rgba(255,255,255,0.95);">
+      <ResultTable
+        :columns="result.columns"
+        :rows="result.rows"
+        :row-count="result.rowCount"
+        :error="result.error"
+        :message="result.message"
+      />
+    </div>
+
     <div class="card" style="padding:20px;">
       <div class="card-header" style="margin-bottom:12px;">
         <h4 class="card-kicker" style="margin:0;">演示查询示例</h4>
@@ -38,53 +77,44 @@
         </button>
       </div>
     </div>
-
-    <div class="card" style="padding:0; overflow:hidden">
-      <div class="card-header" style="padding: 16px 20px; margin-bottom: 0;">
-         <h4 class="card-kicker" style="margin: 0;">SQL 编辑器</h4>
-         <div class="hero-actions" style="margin: 0; display: flex; align-items: center;">
-           <span class="eyebrow" style="margin-right:12px;text-transform:none">Ctrl + Enter 执行</span>
-           <button class="ghost" @click="sqlText = ''">清空</button>
-           <button class="primary" :disabled="running" @click="run">
-             {{ running ? '执行中...' : '▶ 执行' }}
-           </button>
-         </div>
-      </div>
-      <div class="editor-panel">
-        <SqlEditor v-model="sqlText" @execute="run" style="flex:1;" />
-      </div>
-      <div v-if="elapsed !== null" style="padding: 8px 20px; font-size: 11px; color: rgba(28,40,52,0.6);" class="eyebrow">
-        耗时: {{ elapsed }} ms
-      </div>
-    </div>
-
-    <div class="card wide result-card" style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:0;background:rgba(255,255,255,0.95);">
-      <ResultTable
-        :columns="result.columns"
-        :rows="result.rows"
-        :row-count="result.rowCount"
-        :error="result.error"
-        :message="result.message"
-      />
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { nextTick, onMounted, reactive, ref } from 'vue'
 import { executeQuery } from '../api'
-import SqlEditor from '../components/SqlEditor.vue'
 import ResultTable from '../components/ResultTable.vue'
 
 const sqlText = ref('SELECT 1;')
 const running = ref(false)
 const elapsed = ref(null)
+const editorCardRef = ref(null)
+const pageRef = ref(null)
 const result = reactive({
   columns: [],
   rows: [],
   rowCount: null,
   error: '',
   message: '',
+})
+
+onMounted(async () => {
+  await nextTick()
+
+  const canvas = editorCardRef.value?.closest('.canvas')
+  if (canvas) {
+    canvas.scrollTo({ top: 0, behavior: 'auto' })
+  }
+
+  if (pageRef.value) {
+    pageRef.value.scrollTo({ top: 0, behavior: 'auto' })
+  }
+
+  editorCardRef.value?.scrollIntoView({
+    block: 'start',
+    inline: 'nearest',
+    behavior: 'auto',
+  })
 })
 
 const querySamples = [
@@ -365,9 +395,6 @@ async function run() {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  height: 100%;
-  min-height: 0;
-  overflow-y: auto;
   padding-right: 8px;
 }
 
@@ -375,12 +402,51 @@ async function run() {
   min-height: 320px;
 }
 
+.query-editor-card {
+  border-color: rgba(201, 100, 66, 0.26);
+  box-shadow: 0 0 0 1px rgba(201, 100, 66, 0.1);
+}
+
+.editor-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(28, 40, 52, 0.62);
+}
+
 .editor-panel {
   display: flex;
-  height: 320px;
-  min-height: 240px;
-  max-height: 52vh;
+  height: 360px;
+  min-height: 300px;
   border-bottom: 1px solid rgba(28,40,52,0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 243, 235, 0.92));
+}
+
+.editor-panel > * {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.native-sql-editor {
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  resize: vertical;
+  border: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(250, 246, 240, 0.94));
+  color: var(--near-black);
+  font-family: "DM Mono", "Fira Code", "JetBrains Mono", monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  padding: 16px 18px;
+  outline: none;
+  white-space: pre;
+  tab-size: 2;
+}
+
+.native-sql-editor::placeholder {
+  color: rgba(28, 40, 52, 0.42);
 }
 
 .sample-grid {

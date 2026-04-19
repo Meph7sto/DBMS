@@ -5,7 +5,7 @@
         <div class="eyebrow">public.performance_lab</div>
         <h1>索引与视图验证台</h1>
         <p class="perf-copy">
-          这个页面用于演示实验要求 a：导入基准数据、构造演示表、对比索引前后执行计划，并直接查看视图查询结果。
+          这个页面用于演示实验要求 a：导入基准数据、构造演示表、对比索引前后执行计划，并给出“视图 SQL / 展开后的直接 SQL / 页面展示步骤”的对照材料。
         </p>
       </div>
       <div class="perf-meta">
@@ -15,11 +15,11 @@
         </div>
         <div class="meta-item">
           <span>演示项目</span>
-          <strong>{{ demoProjectId }}</strong>
+          <strong>{{ performanceGuide.demoProjectId }}</strong>
         </div>
         <div class="meta-item">
           <span>演示表</span>
-          <strong>{{ demoTable }}</strong>
+          <strong>{{ performanceGuide.demoTable }}</strong>
         </div>
       </div>
     </div>
@@ -36,17 +36,23 @@
           <button class="primary" :disabled="busy || !connection" @click="handleImportBenchmark">
             {{ importState.loading ? '导入中...' : '1. 导入测试数据' }}
           </button>
+          <button class="ghost" :disabled="busy || !connection" @click="handleDeleteBenchmark">
+            {{ deleteState.loading ? '删除中...' : '2. 删除测试数据' }}
+          </button>
+          <button class="ghost" :disabled="busy || !connection" @click="loadBenchmarkSummary">
+            {{ benchmarkState.loading ? '读取中...' : '3. 刷新数据摘要' }}
+          </button>
           <button class="ghost" :disabled="busy || !connection" @click="handleSetupDemoTable">
-            {{ setupState.loading ? '初始化中...' : '2. 初始化演示表' }}
+            {{ setupState.loading ? '初始化中...' : '4. 初始化演示表' }}
           </button>
           <button class="ghost" :disabled="busy || !connection" @click="runBeforePlan">
-            {{ beforeState.loading ? '分析中...' : '3. 运行未建索引查询' }}
+            {{ beforeState.loading ? '分析中...' : '5. 运行未建索引查询' }}
           </button>
           <button class="ghost" :disabled="busy || !connection" @click="runAfterPlan">
-            {{ afterState.loading ? '建索引中...' : '4. 创建索引并重跑' }}
+            {{ afterState.loading ? '建索引中...' : '6. 创建索引并重跑' }}
           </button>
           <button class="ghost" :disabled="busy || !connection" @click="loadActiveView">
-            {{ viewsState.loading ? '加载中...' : '5. 载入视图结果' }}
+            {{ viewsState.loading ? '加载中...' : '7. 载入视图结果' }}
           </button>
           <button class="btn-warm-sand" :disabled="busy || !connection" @click="runFullDemo">
             {{ fullDemoLoading ? '执行中...' : '一键完整演示' }}
@@ -71,8 +77,28 @@
           <div class="note-item">
             <span class="note-index">C</span>
             <div>
-              <strong>视图用途</strong>
-              <p>复杂统计逻辑提前封装，前端和后端只需要直接查询视图。</p>
+              <strong>视图对照</strong>
+              <p>先展示视图 SQL，再展示展开后的直接 SQL，说明视图的价值是复用统计口径，而不是只靠页面结果说服老师。</p>
+            </div>
+          </div>
+          <div class="note-item">
+            <span class="note-index">D</span>
+            <div>
+              <strong>中文提示演示</strong>
+              <p>性能页负责索引与视图；中文错误提示请切到 SQL 编辑器页面，按预置失败 SQL 逐条展示。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="benchmark-status">
+          <div class="benchmark-header">
+            <strong>benchmark 数据摘要</strong>
+            <span>{{ benchmarkCaption }}</span>
+          </div>
+          <div class="benchmark-grid">
+            <div v-for="item in benchmarkCards" :key="item.key" class="benchmark-item">
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}</strong>
             </div>
           </div>
         </div>
@@ -113,7 +139,8 @@
 
         <div class="shortcut-row">
           <router-link class="ghost shortcut-link" to="/table/public/manage_requirements">查看原始表索引</router-link>
-          <router-link class="ghost shortcut-link" :to="`/table/public/${demoTable}`">查看演示副本表</router-link>
+          <router-link class="ghost shortcut-link" :to="`/table/public/${performanceGuide.demoTable}`">查看演示副本表</router-link>
+          <router-link class="ghost shortcut-link" to="/complex-queries">切换到复杂查询控制台</router-link>
           <router-link class="ghost shortcut-link" to="/query">打开 SQL 编辑器</router-link>
         </div>
       </section>
@@ -165,6 +192,26 @@
         <code>{{ activeViewSql }}</code>
       </div>
 
+      <div class="sql-compare-grid">
+        <div class="sql-compare-panel">
+          <div class="sql-compare-title">视图 SQL</div>
+          <code>{{ activeViewSql }}</code>
+        </div>
+        <div class="sql-compare-panel">
+          <div class="sql-compare-title">直接 SQL（答辩对照用）</div>
+          <code>{{ activeViewDirectSql }}</code>
+        </div>
+      </div>
+
+      <div class="demo-script">
+        <div class="demo-script-title">页面演示步骤</div>
+        <p>{{ activeViewPitch }}</p>
+        <div class="shortcut-row">
+          <router-link class="ghost shortcut-link" to="/query">把对照 SQL 粘贴到 SQL 编辑器</router-link>
+          <router-link class="ghost shortcut-link" to="/query">切换到中文错误提示演示</router-link>
+        </div>
+      </div>
+
       <div class="view-result">
         <ResultTable
           :title="activeViewLabel"
@@ -180,8 +227,15 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
-import { executeQuery, importBenchmark } from '../api'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import {
+  deleteBenchmark,
+  executeQuery,
+  getBenchmarkSummary,
+  getPerformanceGuide,
+  getPerformancePreview,
+  importBenchmark,
+} from '../api'
 import ResultTable from '../components/ResultTable.vue'
 
 const props = defineProps({
@@ -198,6 +252,8 @@ const activeView = ref('projectStats')
 const fullDemoLoading = ref(false)
 
 const importState = reactive({ loading: false })
+const deleteState = reactive({ loading: false })
+const benchmarkState = reactive({ loading: false })
 const setupState = reactive({ loading: false, elapsedLabel: '尚未执行' })
 const beforeState = reactive({
   loading: false,
@@ -222,19 +278,143 @@ const viewResult = reactive({
   message: '点击上方按钮加载视图数据。',
 })
 
+const benchmarkSummary = reactive({
+  products: 0,
+  product_members: 0,
+  projects: 0,
+  project_members: 0,
+  requirements: 0,
+  requirement_links: 0,
+  test_cases: 0,
+  requirement_test_links: 0,
+  defects: 0,
+  milestones: 0,
+  milestone_nodes: 0,
+  branches: 0,
+  change_sets: 0,
+  audit_logs: 0,
+  total_records: 0,
+  has_benchmark_data: false,
+})
+
+const performanceGuide = reactive({
+  demoProjectId,
+  demoTable,
+  demoIndex,
+  viewScenarios: {
+    projectStats: {
+      label: 'v_project_statistics 视图结果',
+      viewSql: "SELECT project_id, project_name, total_requirements, total_defects, completion_rate_percent FROM v_project_statistics ORDER BY completion_rate_percent DESC LIMIT 8;",
+      directSql: `WITH req_stats AS (
+  SELECT project_id,
+         COUNT(*) FILTER (WHERE deleted = FALSE) AS total_requirements,
+         COUNT(*) FILTER (WHERE status = 'completed' AND deleted = FALSE) AS completed_count
+  FROM manage_requirements
+  GROUP BY project_id
+),
+def_stats AS (
+  SELECT project_id, COUNT(*) AS total_defects
+  FROM manage_defects
+  GROUP BY project_id
+)
+SELECT p.project_id, p.name AS project_name,
+       COALESCE(r.total_requirements, 0) AS total_requirements,
+       COALESCE(d.total_defects, 0) AS total_defects,
+       CASE
+         WHEN COALESCE(r.total_requirements, 0) > 0
+         THEN ROUND((COALESCE(r.completed_count, 0)::NUMERIC / r.total_requirements) * 100, 2)
+         ELSE 0
+       END AS completion_rate_percent
+FROM manage_projects p
+LEFT JOIN req_stats r ON r.project_id = p.project_id
+LEFT JOIN def_stats d ON d.project_id = p.project_id
+ORDER BY completion_rate_percent DESC
+LIMIT 8;`,
+      pitch: '答辩时先点“项目统计视图”，说明页面直接读 v_project_statistics；再把右侧直接 SQL 贴到 SQL 编辑器，解释视图把项目级统计口径固化成了统一对象。',
+    },
+    requirementDetails: {
+      label: 'v_requirement_details 视图结果',
+      viewSql: `SELECT req_id, requirement_title, project_name, test_case_count, defect_count, open_defect_count FROM v_requirement_details WHERE project_id = '${demoProjectId}' ORDER BY requirement_created_at DESC LIMIT 8;`,
+      directSql: `WITH test_stats AS (
+  SELECT requirement_id, COUNT(DISTINCT test_case_id) AS test_case_count
+  FROM manage_requirement_test_links
+  GROUP BY requirement_id
+),
+defect_stats AS (
+  SELECT requirement_id,
+         COUNT(DISTINCT defect_id) AS defect_count,
+         COUNT(DISTINCT CASE WHEN status IN ('open', 'in_progress') THEN defect_id END) AS open_defect_count
+  FROM manage_defects
+  GROUP BY requirement_id
+)
+SELECT r.req_id,
+       r.title AS requirement_title,
+       p.name AS project_name,
+       COALESCE(ts.test_case_count, 0) AS test_case_count,
+       COALESCE(ds.defect_count, 0) AS defect_count,
+       COALESCE(ds.open_defect_count, 0) AS open_defect_count
+FROM manage_requirements r
+JOIN manage_projects p ON p.project_id = r.project_id
+LEFT JOIN test_stats ts ON ts.requirement_id = r.req_id
+LEFT JOIN defect_stats ds ON ds.requirement_id = r.req_id
+WHERE r.project_id = '${demoProjectId}' AND r.deleted = FALSE
+ORDER BY r.created_at DESC
+LIMIT 8;`,
+      pitch: '答辩时先点“需求详情视图”，展示需求、测试用例和缺陷的聚合结果；再说明右侧直接 SQL 是视图展开后的等价查询，视图减少了页面重复拼接多表 SQL 的负担。',
+    },
+  },
+})
+
 const activeViewSql = computed(() => (
-  activeView.value === 'projectStats'
-    ? "SELECT project_id, project_name, total_requirements, total_defects, completion_rate_percent FROM v_project_statistics ORDER BY completion_rate_percent DESC LIMIT 8;"
-    : `SELECT req_id, requirement_title, project_name, test_case_count, defect_count, open_defect_count FROM v_requirement_details WHERE project_id = '${demoProjectId}' ORDER BY requirement_created_at DESC LIMIT 8;`
+  performanceGuide.viewScenarios[activeView.value]?.viewSql || ''
 ))
 
 const activeViewLabel = computed(() => (
-  activeView.value === 'projectStats' ? 'v_project_statistics 视图结果' : 'v_requirement_details 视图结果'
+  performanceGuide.viewScenarios[activeView.value]?.label || '视图结果'
+))
+
+const activeViewDirectSql = computed(() => (
+  performanceGuide.viewScenarios[activeView.value]?.directSql || ''
+))
+
+const activeViewPitch = computed(() => (
+  performanceGuide.viewScenarios[activeView.value]?.pitch || '可在 SQL 编辑器中展示视图与直接 SQL 的对照。'
 ))
 
 const busy = computed(() => (
-  importState.loading || setupState.loading || beforeState.loading || afterState.loading || viewsState.loading || fullDemoLoading.value
+  importState.loading
+  || deleteState.loading
+  || benchmarkState.loading
+  || setupState.loading
+  || beforeState.loading
+  || afterState.loading
+  || viewsState.loading
+  || fullDemoLoading.value
 ))
+
+const benchmarkCaption = computed(() => (
+  benchmarkSummary.has_benchmark_data
+    ? `当前已识别 ${benchmarkSummary.total_records} 条 benchmark 记录`
+    : '当前未识别到 benchmark 数据'
+))
+
+const benchmarkCards = computed(() => ([
+  { key: 'products', label: '产品', value: benchmarkSummary.products },
+  { key: 'product_members', label: '产品成员', value: benchmarkSummary.product_members },
+  { key: 'projects', label: '项目', value: benchmarkSummary.projects },
+  { key: 'project_members', label: '项目成员', value: benchmarkSummary.project_members },
+  { key: 'requirements', label: '需求', value: benchmarkSummary.requirements },
+  { key: 'requirement_links', label: '需求关联', value: benchmarkSummary.requirement_links },
+  { key: 'test_cases', label: '测试用例', value: benchmarkSummary.test_cases },
+  { key: 'requirement_test_links', label: '需求-测试关联', value: benchmarkSummary.requirement_test_links },
+  { key: 'defects', label: '缺陷', value: benchmarkSummary.defects },
+  { key: 'milestones', label: '里程碑', value: benchmarkSummary.milestones },
+  { key: 'milestone_nodes', label: '快照节点', value: benchmarkSummary.milestone_nodes },
+  { key: 'branches', label: '分支', value: benchmarkSummary.branches },
+  { key: 'change_sets', label: '变更集', value: benchmarkSummary.change_sets },
+  { key: 'audit_logs', label: '审计日志', value: benchmarkSummary.audit_logs },
+  { key: 'total_records', label: '总记录数', value: benchmarkSummary.total_records },
+]))
 
 const speedupText = computed(() => {
   const beforeTime = beforeState.summary.executionTime
@@ -305,6 +485,7 @@ async function handleImportBenchmark() {
   importState.loading = true
   try {
     await importBenchmark()
+    await loadBenchmarkSummary({ silent: true })
     globalMessage.value = '基准测试数据已导入，可以继续初始化演示表。'
   } catch (err) {
     globalError.value = err.response?.data?.detail || err.message || '导入测试数据失败'
@@ -313,25 +494,83 @@ async function handleImportBenchmark() {
   }
 }
 
+async function handleDeleteBenchmark() {
+  resetFeedback()
+  deleteState.loading = true
+  try {
+    await deleteBenchmark()
+    resetBenchmarkState()
+    globalMessage.value = 'benchmark 测试数据已删除，可重新导入演示。'
+  } catch (err) {
+    globalError.value = err.response?.data?.detail || err.message || '删除测试数据失败'
+  } finally {
+    deleteState.loading = false
+  }
+}
+
+function resetBenchmarkState() {
+  Object.assign(benchmarkSummary, {
+    products: 0,
+    product_members: 0,
+    projects: 0,
+    project_members: 0,
+    requirements: 0,
+    requirement_links: 0,
+    test_cases: 0,
+    requirement_test_links: 0,
+    defects: 0,
+    milestones: 0,
+    milestone_nodes: 0,
+    branches: 0,
+    change_sets: 0,
+    audit_logs: 0,
+    total_records: 0,
+    has_benchmark_data: false,
+  })
+}
+
+async function loadBenchmarkSummary(options = {}) {
+  const { silent = false } = options
+  if (!silent) {
+    resetFeedback()
+  }
+  benchmarkState.loading = true
+  try {
+    const { data } = await getBenchmarkSummary()
+    Object.assign(benchmarkSummary, data.summary || {})
+    if (!silent) {
+      globalMessage.value = benchmarkSummary.has_benchmark_data
+        ? 'benchmark 数据摘要已刷新。'
+        : '当前尚未识别到 benchmark 数据。'
+    }
+  } catch (err) {
+    if (!silent) {
+      globalError.value = err.response?.data?.detail || err.message || '读取 benchmark 数据摘要失败'
+    }
+  } finally {
+    benchmarkState.loading = false
+  }
+}
+
 async function handleSetupDemoTable() {
   resetFeedback()
   setupState.loading = true
   const t0 = performance.now()
   try {
-    await runSql(`DROP TABLE IF EXISTS public.${demoTable};`)
+    await runSql(`DROP TABLE IF EXISTS public.${performanceGuide.demoTable};`)
     await runSql(`
-      CREATE TABLE public.${demoTable} AS
+      CREATE TABLE public.${performanceGuide.demoTable} AS
       SELECT *
       FROM public.manage_requirements
       WHERE req_id LIKE 'breq_%';
     `)
-    await runSql(`ANALYZE public.${demoTable};`)
+    await runSql(`ANALYZE public.${performanceGuide.demoTable};`)
     beforeState.summary = makeEmptySummary()
     afterState.summary = makeEmptySummary()
     beforePlanText.value = '演示表已重建。请运行“未建索引查询”生成第一份执行计划。'
     afterPlanText.value = '演示表已重建。创建索引后，这里会显示第二份执行计划。'
     setupState.elapsedLabel = `${Math.round(performance.now() - t0)} ms`
-    globalMessage.value = `演示表 public.${demoTable} 已重建，当前不含自定义索引。`
+    globalMessage.value = `演示表 public.${performanceGuide.demoTable} 已重建，当前不含自定义索引。`
   } catch (err) {
     globalError.value = err.response?.data?.detail || err.message || '初始化演示表失败'
   } finally {
@@ -344,8 +583,8 @@ async function runExplainInto(targetState, targetText) {
   const data = await runSql(`
     EXPLAIN (ANALYZE, BUFFERS)
     SELECT req_id, title, status
-    FROM public.${demoTable}
-    WHERE project_id = '${demoProjectId}' AND deleted = FALSE
+    FROM public.${performanceGuide.demoTable}
+    WHERE project_id = '${performanceGuide.demoProjectId}' AND deleted = FALSE
     ORDER BY order_index;
   `)
   const lines = (data.rows || []).map((row) => row['QUERY PLAN']).filter(Boolean)
@@ -372,10 +611,10 @@ async function runAfterPlan() {
   afterState.loading = true
   try {
     await runSql(`
-      CREATE INDEX IF NOT EXISTS ${demoIndex}
-      ON public.${demoTable}(project_id, deleted, order_index);
+      CREATE INDEX IF NOT EXISTS ${performanceGuide.demoIndex}
+      ON public.${performanceGuide.demoTable}(project_id, deleted, order_index);
     `)
-    await runSql(`ANALYZE public.${demoTable};`)
+    await runSql(`ANALYZE public.${performanceGuide.demoTable};`)
     await runExplainInto(afterState, afterPlanText)
     globalMessage.value = '组合索引已创建，索引后执行计划已刷新。'
   } catch (err) {
@@ -394,17 +633,26 @@ async function loadActiveView() {
   viewResult.error = ''
   viewResult.message = ''
   try {
-    const data = await runSql(activeViewSql.value)
-    if (data.type === 'result') {
-      viewResult.columns = data.columns
-      viewResult.rows = data.rows
-      viewResult.rowCount = data.row_count
-    } else {
-      viewResult.message = data.message
-      viewResult.rowCount = data.row_count
-    }
+    const { data } = await getPerformancePreview(activeView.value)
+    viewResult.columns = data.columns || []
+    viewResult.rows = data.rows || []
+    viewResult.rowCount = data.row_count ?? 0
+    viewResult.message = `已通过统计接口载入 ${data.label}。`
   } catch (err) {
-    viewResult.error = err.response?.data?.detail || err.message || '加载视图数据失败'
+    try {
+      const data = await runSql(activeViewSql.value)
+      if (data.type === 'result') {
+        viewResult.columns = data.columns
+        viewResult.rows = data.rows
+        viewResult.rowCount = data.row_count
+        viewResult.message = '已通过 SQL 查询回退载入视图结果。'
+      } else {
+        viewResult.message = data.message
+        viewResult.rowCount = data.row_count
+      }
+    } catch (fallbackErr) {
+      viewResult.error = fallbackErr.response?.data?.detail || err.response?.data?.detail || fallbackErr.message || err.message || '加载视图数据失败'
+    }
   } finally {
     viewsState.loading = false
   }
@@ -415,6 +663,8 @@ async function runFullDemo() {
   fullDemoLoading.value = true
   try {
     await handleImportBenchmark()
+    if (globalError.value) return
+    await loadBenchmarkSummary({ silent: true })
     if (globalError.value) return
     await handleSetupDemoTable()
     if (globalError.value) return
@@ -430,6 +680,55 @@ async function runFullDemo() {
     fullDemoLoading.value = false
   }
 }
+
+async function loadPerformanceGuide() {
+  try {
+    const { data } = await getPerformanceGuide()
+    if (data?.demo_project_id) {
+      performanceGuide.demoProjectId = data.demo_project_id
+    }
+    if (data?.index_demo?.demo_table) {
+      performanceGuide.demoTable = data.index_demo.demo_table
+    }
+    if (data?.index_demo?.index_name) {
+      performanceGuide.demoIndex = data.index_demo.index_name
+    }
+    if (data?.view_scenarios?.projectStats) {
+      performanceGuide.viewScenarios.projectStats = {
+        label: data.view_scenarios.projectStats.label,
+        viewSql: data.view_scenarios.projectStats.view_sql,
+        directSql: data.view_scenarios.projectStats.direct_sql,
+        pitch: data.view_scenarios.projectStats.pitch,
+      }
+    }
+    if (data?.view_scenarios?.requirementDetails) {
+      performanceGuide.viewScenarios.requirementDetails = {
+        label: data.view_scenarios.requirementDetails.label,
+        viewSql: data.view_scenarios.requirementDetails.view_sql,
+        directSql: data.view_scenarios.requirementDetails.direct_sql,
+        pitch: data.view_scenarios.requirementDetails.pitch,
+      }
+    }
+  } catch {
+    // Keep local fallback content so the page still shows the teaching script.
+  }
+}
+
+onMounted(() => {
+  loadPerformanceGuide()
+})
+
+watch(
+  () => props.connection?.database,
+  (databaseName) => {
+    if (databaseName) {
+      loadBenchmarkSummary({ silent: true })
+      return
+    }
+    resetBenchmarkState()
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>
@@ -518,6 +817,46 @@ async function runFullDemo() {
 .perf-notes {
   display: grid;
   gap: 12px;
+}
+
+.benchmark-status {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(28, 40, 52, 0.08);
+}
+
+.benchmark-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 12px;
+  color: rgba(28, 40, 52, 0.68);
+  font-size: 13px;
+}
+
+.benchmark-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.benchmark-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid rgba(28, 40, 52, 0.08);
+  background: rgba(255, 248, 238, 0.78);
+}
+
+.benchmark-item span {
+  font-size: 12px;
+  color: rgba(28, 40, 52, 0.5);
+}
+
+.benchmark-item strong {
+  font-size: 18px;
+  color: var(--ink-900);
 }
 
 .note-item {
@@ -664,6 +1003,54 @@ async function runFullDemo() {
   border: 1px solid rgba(28, 40, 52, 0.08);
 }
 
+.sql-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.sql-compare-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.sql-compare-title,
+.demo-script-title {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(28, 40, 52, 0.5);
+}
+
+.sql-compare-panel code {
+  display: block;
+  min-height: 176px;
+  padding: 12px;
+  background: rgba(255, 248, 238, 0.9);
+  border: 1px solid rgba(28, 40, 52, 0.08);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.demo-script {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(248, 242, 231, 0.96), rgba(255, 255, 255, 0.92));
+  border: 1px solid rgba(28, 40, 52, 0.08);
+}
+
+.demo-script p {
+  margin: 0;
+  color: rgba(28, 40, 52, 0.7);
+  line-height: 1.6;
+  font-size: 13px;
+}
+
 .perf-error,
 .perf-message {
   padding: 12px 16px;
@@ -686,7 +1073,9 @@ async function runFullDemo() {
 @media (max-width: 1180px) {
   .perf-hero,
   .perf-grid,
-  .summary-grid {
+  .summary-grid,
+  .sql-compare-grid,
+  .benchmark-grid {
     grid-template-columns: 1fr;
   }
 }

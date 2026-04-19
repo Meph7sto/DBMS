@@ -81,12 +81,30 @@ def test_requirements_api_enforces_parent_rules_and_soft_delete(api_modules, fak
             parent_id=low_level_id,
         )
     )
-    task_id = task["id"]
+    assert task["ok"] is True
+
+    other_top = crud.create_requirement(
+        crud.RequirementCreate(
+            project_id="proj_a",
+            requirement_type="top_level",
+            title="另一个顶层",
+            status="draft",
+        )
+    )
+    sibling_task = crud.create_requirement(
+        crud.RequirementCreate(
+            project_id="proj_a",
+            requirement_type="task",
+            title="非后代任务",
+            status="draft",
+            parent_id=other_top["id"],
+        )
+    )
 
     with pytest.raises(HTTPException) as exc:
         crud.update_requirement(
             low_level_id,
-            crud.RequirementUpdate(parent_id=task_id),
+            crud.RequirementUpdate(parent_id=sibling_task["id"]),
         )
     assert exc.value.status_code == 400
     assert "父需求类型必须为 top_level" in exc.value.detail
@@ -96,10 +114,6 @@ def test_requirements_api_enforces_parent_rules_and_soft_delete(api_modules, fak
     assert fake_db.requirements[low_level_id]["deleted"] is True
 
 
-@pytest.mark.xfail(
-    reason="当前层级校验会先拦截非法父类型，递归循环检测分支难以按实验文档要求真正触发",
-    strict=False,
-)
 def test_requirement_cycle_detection_should_reject_descendant_parent(api_modules, fake_db) -> None:
     crud = api_modules["crud"]
     fake_db.seed_project("proj_a", name="项目A")
@@ -138,10 +152,6 @@ def test_requirement_cycle_detection_should_reject_descendant_parent(api_modules
     assert "循环父子关系" in exc.value.detail
 
 
-@pytest.mark.xfail(
-    reason="当前实现把需求优先级校验错误复用了缺陷优先级集合，导致 high 被拒绝",
-    strict=False,
-)
 def test_requirement_priority_should_accept_low_medium_high_per_fr4(api_modules, fake_db) -> None:
     crud = api_modules["crud"]
     fake_db.seed_project("proj_a", name="项目A")

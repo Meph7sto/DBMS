@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import shutil
 import sys
+import tempfile
 import types
 from pathlib import Path
 
@@ -15,6 +17,11 @@ if str(BACKEND_DIR) not in sys.path:
 def _install_psycopg2_stub() -> None:
     if "psycopg2" in sys.modules:
         return
+    try:
+        __import__("psycopg2")
+        return
+    except ImportError:
+        pass
 
     psycopg2 = types.ModuleType("psycopg2")
 
@@ -106,6 +113,17 @@ from tests.fake_db import FakeDB
 @pytest.fixture
 def fake_db() -> FakeDB:
     return FakeDB()
+
+
+@pytest.fixture
+def tmp_path() -> Path:
+    base_dir = BACKEND_DIR / ".pytest_tmp"
+    base_dir.mkdir(exist_ok=True)
+    path = Path(tempfile.mkdtemp(dir=base_dir))
+    try:
+        yield path
+    finally:
+        shutil.rmtree(path, ignore_errors=True)
 
 
 @pytest.fixture

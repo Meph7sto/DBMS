@@ -66,6 +66,11 @@
         <span class="nav-label">复杂查询</span>
       </router-link>
 
+      <router-link to="/test-validation" class="rail-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span class="nav-label">测试验收</span>
+      </router-link>
+
       <router-link to="/query" class="rail-link">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
         <span class="nav-label">新建查询</span>
@@ -88,6 +93,14 @@
           >
             <span class="submenu-dot perf-dot"></span>
             <span>性能验证</span>
+          </router-link>
+          <router-link
+            v-if="schema === 'public'"
+            to="/test-validation"
+            class="submenu-item rail-link perf-entry"
+          >
+            <span class="submenu-dot perf-dot"></span>
+            <span>测试验收台</span>
           </router-link>
           <router-link
             v-for="t in tablesMap[schema] || []"

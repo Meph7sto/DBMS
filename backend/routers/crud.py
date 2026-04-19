@@ -26,7 +26,8 @@ ERROR_MESSAGES = {
     "milestone_not_found": "错误：指定的里程碑ID『{id}』不存在",
     "invalid_status": "错误：状态值『{value}』不在允许的范围内（{allowed}）",
     "invalid_severity": "错误：严重程度『{value}』不在允许的范围内（critical/high/medium/low）",
-    "invalid_priority": "错误：优先级『{value}』不在允许的范围内（P0/P1/P2/P3）",
+    "invalid_requirement_priority": "错误：优先级『{value}』不在允许的范围内（low/medium/high）",
+    "invalid_defect_priority": "错误：优先级『{value}』不在允许的范围内（P0/P1/P2/P3）",
     "invalid_role": "错误：角色『{value}』不在允许的范围内（owner/admin/member/viewer）",
     "top_level_parent_forbidden": "错误：top_level 类型需求不能设置父需求",
     "missing_parent_for_type": "错误：{type} 类型需求必须指定父需求",
@@ -102,21 +103,6 @@ def validate_requirement_parent(
     if parent["project_id"] != project_id:
         raise HTTPException(status_code=400, detail=err("cross_project_parent", id=parent_id))
 
-    allowed_parent_types = {
-        "low_level": {"top_level"},
-        "task": {"top_level", "low_level"},
-    }
-    allowed = allowed_parent_types.get(requirement_type, set())
-    if parent["requirement_type"] not in allowed:
-        raise HTTPException(
-            status_code=400,
-            detail=err(
-                "invalid_parent_type",
-                type=requirement_type,
-                allowed="/".join(sorted(allowed)),
-            ),
-        )
-
     if current_req_id is not None:
         cycle = db.execute(
             """
@@ -139,6 +125,21 @@ def validate_requirement_parent(
         )
         if cycle["rows"]:
             raise HTTPException(status_code=400, detail=err("circular_requirement"))
+
+    allowed_parent_types = {
+        "low_level": {"top_level"},
+        "task": {"top_level", "low_level"},
+    }
+    allowed = allowed_parent_types.get(requirement_type, set())
+    if parent["requirement_type"] not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=err(
+                "invalid_parent_type",
+                type=requirement_type,
+                allowed="/".join(sorted(allowed)),
+            ),
+        )
 
 
 # ─── 通用响应模型 ────────────────────────────────────────────
@@ -415,7 +416,7 @@ class RequirementUpdate(BaseModel):
 
 VALID_REQ_TYPES = {"top_level", "low_level", "task"}
 VALID_REQ_STATUS = {"draft", "under_review", "confirmed", "in_progress", "completed", "archived"}
-VALID_PRIORITIES = {"low", "medium", "high"}
+VALID_REQ_PRIORITIES = {"low", "medium", "high"}
 
 
 @router.get("/requirements")
@@ -462,10 +463,10 @@ def create_requirement(item: RequirementCreate):
             detail=err("invalid_status", value=item.status,
                        allowed="draft/under_review/confirmed/in_progress/completed/archived"),
         )
-    if priority and priority not in VALID_PRIORITIES:
+    if priority and priority not in VALID_REQ_PRIORITIES:
         raise HTTPException(
             status_code=400,
-            detail=err("invalid_priority", value=priority),
+            detail=err("invalid_requirement_priority", value=priority),
         )
     check = db.execute(
         "SELECT 1 FROM manage_projects WHERE project_id = %s",
@@ -504,10 +505,10 @@ def update_requirement(req_id: str, item: RequirementUpdate):
             detail=err("invalid_status", value=item.status,
                        allowed="draft/under_review/confirmed/in_progress/completed/archived"),
         )
-    if normalized_priority is not None and normalized_priority not in VALID_PRIORITIES:
+    if normalized_priority is not None and normalized_priority not in VALID_REQ_PRIORITIES:
         raise HTTPException(
             status_code=400,
-            detail=err("invalid_priority", value=item.priority),
+            detail=err("invalid_requirement_priority", value=item.priority),
         )
     if item.parent_id is not None:
         validate_requirement_parent(
@@ -589,7 +590,7 @@ class DefectUpdate(BaseModel):
 
 
 VALID_SEVERITIES = {"critical", "high", "medium", "low"}
-VALID_PRIORITIES = {"P0", "P1", "P2", "P3"}
+VALID_DEFECT_PRIORITIES = {"P0", "P1", "P2", "P3"}
 VALID_DEFECT_STATUS = {"open", "in_progress", "resolved", "verified", "closed", "rejected"}
 
 
@@ -626,8 +627,8 @@ def create_defect(item: DefectCreate):
         raise HTTPException(status_code=400, detail=err("empty_title"))
     if item.severity not in VALID_SEVERITIES:
         raise HTTPException(status_code=400, detail=err("invalid_severity", value=item.severity))
-    if item.priority not in VALID_PRIORITIES:
-        raise HTTPException(status_code=400, detail=err("invalid_priority", value=item.priority))
+    if item.priority not in VALID_DEFECT_PRIORITIES:
+        raise HTTPException(status_code=400, detail=err("invalid_defect_priority", value=item.priority))
     if item.status not in VALID_DEFECT_STATUS:
         raise HTTPException(
             status_code=400,
@@ -668,8 +669,8 @@ def create_defect(item: DefectCreate):
 def update_defect(defect_id: str, item: DefectUpdate):
     if item.severity is not None and item.severity not in VALID_SEVERITIES:
         raise HTTPException(status_code=400, detail=err("invalid_severity", value=item.severity))
-    if item.priority is not None and item.priority not in VALID_PRIORITIES:
-        raise HTTPException(status_code=400, detail=err("invalid_priority", value=item.priority))
+    if item.priority is not None and item.priority not in VALID_DEFECT_PRIORITIES:
+        raise HTTPException(status_code=400, detail=err("invalid_defect_priority", value=item.priority))
     if item.status is not None and item.status not in VALID_DEFECT_STATUS:
         raise HTTPException(
             status_code=400,

@@ -17,6 +17,7 @@ import CommentsView from './views/CommentsView.vue'
 import AuditLogsView from './views/AuditLogsView.vue'
 import PerformanceLab from './views/PerformanceLab.vue'
 import ComplexQueriesView from './views/ComplexQueriesView.vue'
+import TestValidationView from './views/TestValidationView.vue'
 
 const routes = [
   { path: '/', name: 'dashboard', component: Dashboard },
@@ -33,6 +34,7 @@ const routes = [
   { path: '/audit-logs', name: 'audit-logs', component: AuditLogsView },
   { path: '/complex-queries', name: 'complex-queries', component: ComplexQueriesView },
   { path: '/performance-lab', name: 'performance-lab', component: PerformanceLab },
+  { path: '/test-validation', name: 'test-validation', component: TestValidationView },
 ]
 
 const router = createRouter({
