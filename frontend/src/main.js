@@ -18,6 +18,7 @@ import AuditLogsView from './views/AuditLogsView.vue'
 import PerformanceLab from './views/PerformanceLab.vue'
 import ComplexQueriesView from './views/ComplexQueriesView.vue'
 import TestValidationView from './views/TestValidationView.vue'
+import ViewComparisonLab from './views/ViewComparisonLab.vue'
 
 const routes = [
   { path: '/', name: 'dashboard', component: Dashboard },
@@ -34,6 +35,7 @@ const routes = [
   { path: '/audit-logs', name: 'audit-logs', component: AuditLogsView },
   { path: '/complex-queries', name: 'complex-queries', component: ComplexQueriesView },
   { path: '/performance-lab', name: 'performance-lab', component: PerformanceLab },
+  { path: '/view-comparison', name: 'view-comparison', component: ViewComparisonLab },
   { path: '/test-validation', name: 'test-validation', component: TestValidationView },
 ]
 

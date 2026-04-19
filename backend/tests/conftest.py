@@ -5,6 +5,7 @@ import sys
 import tempfile
 import types
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -142,3 +143,48 @@ def api_modules(monkeypatch: pytest.MonkeyPatch, fake_db: FakeDB) -> dict[str, o
         "query": query,
         "statistics": statistics,
     }
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    config._constraint_matrix_records = []
+
+
+@pytest.fixture
+def constraint_matrix_recorder(request: pytest.FixtureRequest):
+    records: list[dict[str, Any]] = request.config._constraint_matrix_records
+
+    def record(entry: dict[str, Any]) -> None:
+        records.append(entry)
+
+    return record
+
+
+def pytest_terminal_summary(
+    terminalreporter: pytest.TerminalReporter,
+    exitstatus: int,
+    config: pytest.Config,
+) -> None:
+    records: list[dict[str, Any]] = getattr(config, "_constraint_matrix_records", [])
+    if not records:
+        return
+
+    total = len(records)
+    kind_counts: dict[str, int] = {}
+    for record in records:
+        kind = str(record.get("kind", "unknown"))
+        kind_counts[kind] = kind_counts.get(kind, 0) + 1
+
+    terminalreporter.write_sep("=", "Constraint Integrity Matrix")
+    terminalreporter.write_line(f"Collected results: {total}")
+    for kind, count in sorted(kind_counts.items()):
+        terminalreporter.write_line(f"  {kind}: {count}")
+
+    for record in records:
+        case_id = record.get("case_id", "unknown")
+        kind = record.get("kind", "unknown")
+        outcome = record.get("outcome", "ok")
+        detail = record.get("detail", "")
+        if detail:
+            terminalreporter.write_line(f"  [{kind}] {case_id}: {outcome} - {detail}")
+        else:
+            terminalreporter.write_line(f"  [{kind}] {case_id}: {outcome}")

@@ -40,7 +40,7 @@ LEFT JOIN def_stats d ON d.project_id = p.project_id
 ORDER BY completion_rate_percent DESC
 LIMIT 8;
 """.strip(),
-        "pitch": "答辩时先说明页面直接读取 v_project_statistics，再展示展开后的直接 SQL，强调视图把项目级统计口径固定成了统一对象。",
+        "pitch": "可先说明页面直接读取 v_project_statistics，再查看展开后的直接 SQL，强调视图把项目级统计口径固定成了统一对象。",
     },
     "requirementDetails": {
         "label": "v_requirement_details 视图结果",
@@ -76,7 +76,7 @@ WHERE r.project_id = '{DEMO_PROJECT_ID}' AND r.deleted = FALSE
 ORDER BY r.created_at DESC
 LIMIT 8;
 """.strip(),
-        "pitch": "答辩时先展示需求详情视图结果，再说明右侧直接 SQL 是等价展开查询，视图减少了页面重复拼接多表聚合 SQL 的负担。",
+        "pitch": "可先查看需求详情视图结果，再说明右侧直接 SQL 是等价展开查询，视图减少了页面重复拼接多表聚合 SQL 的负担。",
     },
 }
 

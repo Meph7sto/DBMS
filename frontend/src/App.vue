@@ -1,9 +1,8 @@
 <template>
   <div class="ref-app">
     <div class="grain"></div>
-    <div class="app-layout" :class="{ 'no-sidebar': !connection }" :style="connection ? sidebarLayoutStyle : undefined">
+    <div class="app-layout" :style="sidebarLayoutStyle">
       <Sidebar
-        v-if="connection"
         :schemas="schemas"
         :tables-map="tablesMap"
         :collapsed="isSidebarCollapsed"

@@ -71,6 +71,11 @@
         <span class="nav-label">测试验收</span>
       </router-link>
 
+      <router-link to="/view-comparison" class="rail-link">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M4 17h16"/><path d="M7 4v16"/><path d="M17 4v16"/></svg>
+        <span class="nav-label">视图对照</span>
+      </router-link>
+
       <router-link to="/query" class="rail-link">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
         <span class="nav-label">新建查询</span>
@@ -101,6 +106,14 @@
           >
             <span class="submenu-dot perf-dot"></span>
             <span>测试验收台</span>
+          </router-link>
+          <router-link
+            v-if="schema === 'public'"
+            to="/view-comparison"
+            class="submenu-item rail-link perf-entry"
+          >
+            <span class="submenu-dot perf-dot"></span>
+            <span>视图对照台</span>
           </router-link>
           <router-link
             v-for="t in tablesMap[schema] || []"

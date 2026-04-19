@@ -5,7 +5,7 @@
         <div class="eyebrow">public.performance_lab</div>
         <h1>索引与视图验证台</h1>
         <p class="perf-copy">
-          这个页面用于演示实验要求 a：导入基准数据、构造演示表、对比索引前后执行计划，并给出“视图 SQL / 展开后的直接 SQL / 页面展示步骤”的对照材料。
+          这个页面用于完成实验要求 a：导入基准数据、构造演示表、对比索引前后执行计划，并给出“视图 SQL / 展开后的直接 SQL / 页面操作步骤”的对照材料。
         </p>
       </div>
       <div class="perf-meta">
@@ -78,14 +78,14 @@
             <span class="note-index">C</span>
             <div>
               <strong>视图对照</strong>
-              <p>先展示视图 SQL，再展示展开后的直接 SQL，说明视图的价值是复用统计口径，而不是只靠页面结果说服老师。</p>
+              <p>先查看视图 SQL，再查看展开后的直接 SQL，说明视图的价值是复用统计口径，而不只是停留在页面结果层面。</p>
             </div>
           </div>
           <div class="note-item">
             <span class="note-index">D</span>
             <div>
               <strong>中文提示演示</strong>
-              <p>性能页负责索引与视图；中文错误提示请切到 SQL 编辑器页面，按预置失败 SQL 逐条展示。</p>
+              <p>性能页负责索引与视图；中文错误提示请切到 SQL 编辑器页面，按预置失败 SQL 逐条查看。</p>
             </div>
           </div>
         </div>
@@ -198,13 +198,13 @@
           <code>{{ activeViewSql }}</code>
         </div>
         <div class="sql-compare-panel">
-          <div class="sql-compare-title">直接 SQL（答辩对照用）</div>
+          <div class="sql-compare-title">直接 SQL</div>
           <code>{{ activeViewDirectSql }}</code>
         </div>
       </div>
 
       <div class="demo-script">
-        <div class="demo-script-title">页面演示步骤</div>
+        <div class="demo-script-title">页面操作步骤</div>
         <p>{{ activeViewPitch }}</p>
         <div class="shortcut-row">
           <router-link class="ghost shortcut-link" to="/query">把对照 SQL 粘贴到 SQL 编辑器</router-link>
@@ -330,7 +330,7 @@ LEFT JOIN req_stats r ON r.project_id = p.project_id
 LEFT JOIN def_stats d ON d.project_id = p.project_id
 ORDER BY completion_rate_percent DESC
 LIMIT 8;`,
-      pitch: '答辩时先点“项目统计视图”，说明页面直接读 v_project_statistics；再把右侧直接 SQL 贴到 SQL 编辑器，解释视图把项目级统计口径固化成了统一对象。',
+      pitch: '可先点“项目统计视图”，说明页面直接读 v_project_statistics；再把右侧直接 SQL 贴到 SQL 编辑器，解释视图把项目级统计口径固化成了统一对象。',
     },
     requirementDetails: {
       label: 'v_requirement_details 视图结果',
@@ -360,7 +360,7 @@ LEFT JOIN defect_stats ds ON ds.requirement_id = r.req_id
 WHERE r.project_id = '${demoProjectId}' AND r.deleted = FALSE
 ORDER BY r.created_at DESC
 LIMIT 8;`,
-      pitch: '答辩时先点“需求详情视图”，展示需求、测试用例和缺陷的聚合结果；再说明右侧直接 SQL 是视图展开后的等价查询，视图减少了页面重复拼接多表 SQL 的负担。',
+      pitch: '可先点“需求详情视图”，查看需求、测试用例和缺陷的聚合结果；再说明右侧直接 SQL 是视图展开后的等价查询，视图减少了页面重复拼接多表 SQL 的负担。',
     },
   },
 })
@@ -378,7 +378,7 @@ const activeViewDirectSql = computed(() => (
 ))
 
 const activeViewPitch = computed(() => (
-  performanceGuide.viewScenarios[activeView.value]?.pitch || '可在 SQL 编辑器中展示视图与直接 SQL 的对照。'
+  performanceGuide.viewScenarios[activeView.value]?.pitch || '可在 SQL 编辑器中查看视图与直接 SQL 的对照。'
 ))
 
 const busy = computed(() => (
@@ -674,7 +674,7 @@ async function runFullDemo() {
     if (globalError.value) return
     await loadActiveView()
     if (!globalError.value) {
-      globalMessage.value = '完整演示流程已执行完成，可以直接用于课堂展示。'
+      globalMessage.value = '完整流程已执行完成，可以直接继续查看结果。'
     }
   } finally {
     fullDemoLoading.value = false
